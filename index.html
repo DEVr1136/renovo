@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renovo Celulas</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
+
+    <!-- TELA DE LOGIN -->
+    <div id="auth-screen" class="auth-screen">
+      <p class="eyebrow" style="text-align:center">Igreja Renovo</p>
+      <h1 style="font-family:'Fraunces',Georgia,serif;font-size:clamp(1.6rem,4vw,2.2rem);margin:0.2rem 0 1.2rem;text-align:center">
+        Ambiente de Celulas
+      </h1>
+
+      <div class="auth-card">
+        <form id="login-form" class="auth-form">
+          <label>
+            Usuario
+            <input name="username" required autocomplete="username" placeholder="usuario" />
+          </label>
+          <label>
+            Senha
+            <input name="password" type="password" required autocomplete="current-password" placeholder="senha" />
+          </label>
+          <button type="submit">Entrar</button>
+          <p id="auth-feedback" class="auth-feedback"></p>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <div id="app-shell" hidden>
+      <main class="page">
+        <header class="hero">
+          <div class="hero-top-row">
+            <div>
+              <p class="eyebrow">Igreja Renovo</p>
+              <h1>Ambiente de Celulas</h1>
+            </div>
+            <button id="logout-button" type="button" class="ghost-btn">Sair</button>
+          </div>
+          <p class="subtitle">Base para lideranca acompanhar celulas, membros e crescimento.</p>
+          <div class="access-strip">
+            <p id="access-badge" class="access-badge"></p>
+            <p id="access-note" class="access-note"></p>
+          </div>
+        </header>
+
+        <section class="stats" aria-label="Resumo">
+          <article class="stat-card">
+            <p>Total de celulas</p>
+            <strong id="total-cells">0</strong>
+          </article>
+          <article class="stat-card">
+            <p>Total de membros</p>
+            <strong id="total-members">0</strong>
+          </article>
+        </section>
+
+        <section class="action-cards">
+          <button class="action-card action-card-create" id="create-cell-card" type="button">
+            <span class="action-icon">+</span>
+            <span class="action-content">
+              <strong>Criar nova celula</strong>
+              <small>Cadastre a celula com lider, dia e horario.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-member" id="add-member-card" type="button">
+            <span class="action-icon">+</span>
+            <span class="action-content">
+              <strong>Adicionar membro</strong>
+              <small>Vincule membros as celulas cadastradas.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-cells" id="view-cells-card" type="button">
+            <span class="action-icon">&#128205;</span>
+            <span class="action-content">
+              <strong>Ver celulas</strong>
+              <small>Visualize celulas e membros cadastrados.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-report" id="weekly-report-card" type="button">
+            <span class="action-icon">&#128203;</span>
+            <span class="action-content">
+              <strong>Relatorio semanal</strong>
+              <small>Gere o relatorio de presenca da reuniao.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-access" id="manage-access-card" type="button">
+            <span class="action-icon">&#128275;</span>
+            <span class="action-content">
+              <strong>Gerenciar acessos</strong>
+              <small>Controle usuarios e permissoes do sistema.</small>
+            </span>
+          </button>
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL: Nova celula -->
+    <div class="modal-backdrop" id="cell-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cell-modal-title">
+        <div class="modal-head">
+          <h2 id="cell-modal-title">Nova celula</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-cell-modal">Fechar</button>
+        </div>
+        <form id="cell-form">
+          <label>
+            Nome da celula
+            <input name="name" required maxlength="80" />
+          </label>
+          <label>
+            Bairro
+            <input name="neighborhood" required maxlength="80" />
+          </label>
+          <label>
+            Dia da reuniao
+            <select name="meetingDay" required>
+              <option value="">Selecione...</option>
+              <option>Segunda</option>
+              <option>Terca</option>
+              <option>Quarta</option>
+              <option>Quinta</option>
+              <option>Sexta</option>
+              <option>Sabado</option>
+              <option>Domingo</option>
+            </select>
+          </label>
+          <label>
+            Horario
+            <input name="meetingTime" type="time" required />
+          </label>
+          <label>
+            Lider
+            <input name="leader" required maxlength="80" />
+          </label>
+          <button type="submit">Salvar celula</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: Novo membro -->
+    <div class="modal-backdrop" id="member-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="member-modal-title">
+        <div class="modal-head">
+          <h2 id="member-modal-title">Novo membro</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-member-modal">Fechar</button>
+        </div>
+        <form id="member-form">
+          <label>
+            Celula
+            <select name="cellId" id="member-cell" required>
+              <option value="">Cadastre uma celula primeiro</option>
+            </select>
+          </label>
+          <label>
+            Nome do membro
+            <input name="memberName" required maxlength="80" />
+          </label>
+          <label>
+            Telefone
+            <input name="memberPhone" maxlength="20" placeholder="(11) 99999-9999" />
+          </label>
+          <button type="submit">Adicionar membro</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: Ver celulas -->
+    <div class="modal-backdrop" id="cells-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="cells-modal-title">
+        <div class="modal-head">
+          <h2 id="cells-modal-title">Celulas cadastradas</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-cells-modal">Fechar</button>
+        </div>
+        <div id="cells-list" class="cells-list"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: Relatorio semanal -->
+    <div class="modal-backdrop" id="report-modal" hidden>
+      <div class="modal-card modal-card-xl" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+        <div class="modal-head">
+          <div>
+            <h2 id="report-modal-title">Relatorio semanal da celula</h2>
+            <p class="panel-sub">Gere o texto final com membros, presentes, faltaram e resumo.</p>
+          </div>
+          <button type="button" class="ghost-btn modal-close" id="close-report-modal">Fechar</button>
+        </div>
+
+        <div class="report-grid">
+          <form id="report-form" class="report-form">
+            <label>
+              Celula
+              <select name="cellId" id="report-cell" required>
+                <option value="">Cadastre uma celula primeiro</option>
+              </select>
+            </label>
+
+            <label>
+              Data
+              <input type="date" name="date" required />
+            </label>
+
+            <label>
+              Lideres
+              <input name="leaders" required maxlength="120" placeholder="Ex: Sabrina e Filipe" />
+            </label>
+
+            <label>
+              Co-lideres
+              <input name="coLeaders" maxlength="120" placeholder="Ex: Ian Vieira" />
+            </label>
+
+            <label>
+              Anfitriao (dono da casa)
+              <input name="host" maxlength="120" placeholder="Ex: Salipe" />
+            </label>
+
+            <div class="attendance-box">
+              <div class="attendance-head">
+                <p>Presenca dos membros</p>
+                <div class="attendance-actions">
+                  <button type="button" class="ghost-btn compact-btn" id="mark-all-attendance">Marcar todos</button>
+                  <button type="button" class="ghost-btn compact-btn" id="clear-attendance">Limpar</button>
+                </div>
+              </div>
+              <div id="attendance-list" class="attendance-list"></div>
+            </div>
+
+            <div class="report-fields-grid">
+              <label>
+                Visitantes (qtd)
+                <input type="number" name="visitorsCount" min="0" value="0" required />
+              </label>
+              <label>
+                Conversoes
+                <input type="number" name="conversions" min="0" value="0" required />
+              </label>
+              <label>
+                Oferta (R$)
+                <input type="number" name="offering" min="0" step="0.01" value="0" required />
+              </label>
+              <label>
+                Alimentos
+                <select name="foods" required>
+                  <option>Sim</option>
+                  <option selected>Nao</option>
+                </select>
+              </label>
+              <label>
+                Lanche
+                <select name="snack" required>
+                  <option>Sim</option>
+                  <option selected>Nao</option>
+                </select>
+              </label>
+              <label>
+                Discipulado
+                <select name="discipleship" required>
+                  <option selected>Sim</option>
+                  <option>Nao</option>
+                </select>
+              </label>
+              <label>
+                Visitas
+                <select name="visits" required>
+                  <option selected>Sim</option>
+                  <option>Nao</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Nomes dos visitantes (um por linha, opcional)
+              <textarea name="visitorNames" rows="4" placeholder="Visitante 1&#10;Visitante 2"></textarea>
+            </label>
+
+            <button type="submit">Gerar relatorio</button>
+          </form>
+
+          <aside class="report-output-box">
+            <div class="report-output-head">
+              <h3>Resultado final</h3>
+              <button type="button" class="ghost-btn" id="copy-report">Copiar texto</button>
+            </div>
+            <div id="report-chart-wrap" hidden>
+              <canvas id="report-chart" width="220" height="220"></canvas>
+              <div id="report-chart-legend" class="chart-legend"></div>
+            </div>
+            <textarea
+              id="report-output"
+              rows="24"
+              readonly
+              placeholder="O relatorio sera exibido aqui."
+            ></textarea>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Gerenciar acessos -->
+    <div class="modal-backdrop" id="access-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="access-modal-title">
+        <div class="modal-head">
+          <h2 id="access-modal-title">Gerenciar acessos</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-access-modal">Fechar</button>
+        </div>
+
+        <div class="access-grid">
+          <div class="access-form">
+            <form id="access-form">
+              <input name="userId" type="hidden" value="" />
+              <label>
+                Nome completo
+                <input name="name" required maxlength="80" />
+              </label>
+              <label>
+                Usuario (login)
+                <input name="username" required maxlength="40" />
+              </label>
+              <label>
+                Senha (em branco = nao altera)
+                <input name="password" type="password" maxlength="80" />
+              </label>
+              <label>
+                Confirmar senha
+                <input name="confirmPassword" type="password" maxlength="80" />
+              </label>
+              <label>
+                Cargo
+                <select name="role">
+                  <option value="leader">Lider de Celula</option>
+                  <option value="coordinator">Coordenador</option>
+                  <option value="pastor">Pastor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label>
+                Celula vinculada (para lideres)
+                <input name="assignedCellName" maxlength="80" placeholder="Nome exato da celula" />
+              </label>
+              <div class="access-form-actions">
+                <button type="submit" id="save-access-button">Salvar acesso</button>
+                <button type="button" class="ghost-btn" id="cancel-access-edit" hidden>Cancelar edicao</button>
+              </div>
+              <p id="access-feedback" class="access-feedback"></p>
+            </form>
+          </div>
+
+          <div class="access-users-box">
+            <div class="access-users-head">
+              <h3>Usuarios cadastrados</h3>
+            </div>
+            <div id="access-users-list" class="access-users-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
