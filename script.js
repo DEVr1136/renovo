@@ -77,7 +77,7 @@ const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 const ROLE_PERMISSIONS = {
   createCell: ["coordinator", "pastor", "admin"],
-  manageMembers: ["leader", "coordinator", "pastor", "admin"],
+  manageMembers: ["coordinator", "pastor", "admin"],
   submitReports: ["leader", "coordinator", "pastor", "admin"],
   viewCells: ["coordinator", "pastor", "admin"],
   manageAccess: ["pastor", "admin"],
