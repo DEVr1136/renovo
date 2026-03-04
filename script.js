@@ -539,12 +539,16 @@ function bindAppEvents() {
     loadSavedReportIfExists();
     renderAttendanceList();
     renderLatestReport();
+    const generateBtn = document.getElementById("generate-report-btn");
+    if (generateBtn) generateBtn.textContent = "Gerar relatorio";
   });
 
   reportDateInput.addEventListener("change", () => {
     loadSavedReportIfExists();
     renderAttendanceList();
     renderLatestReport();
+    const generateBtn = document.getElementById("generate-report-btn");
+    if (generateBtn) generateBtn.textContent = "Gerar relatorio";
   });
 
   markAllAttendanceButton.addEventListener("click", () => {
@@ -619,6 +623,9 @@ function bindAppEvents() {
     const absentCount = cell.members.length - presentCount;
     reportOutput.value = buildReportText(reportData, cell);
     drawReportChart(presentCount, absentCount, reportData.visitorsCount);
+
+    const generateBtn = document.getElementById("generate-report-btn");
+    if (generateBtn) generateBtn.textContent = "Gerar novo relatorio";
   });
 
   cellsList.addEventListener("click", (event) => {
