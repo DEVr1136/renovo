@@ -18,6 +18,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
@@ -335,6 +339,12 @@ h1 {
   display: none;
 }
 
+.cell-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.1rem 0 0.6rem;
+}
+
 form {
   display: grid;
   gap: 0.8rem;
@@ -471,6 +481,19 @@ button:hover {
   gap: 0.95rem;
 }
 
+.report-mode-note {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.report-form.readonly input:not([type="checkbox"]),
+.report-form.readonly select,
+.report-form.readonly textarea {
+  background: #f6f7f2;
+  color: #5f6f67;
+}
+
 .attendance-box {
   border: 1px solid var(--line);
   border-radius: 0.85rem;
@@ -557,6 +580,100 @@ button:hover {
   border-radius: 0.92rem;
   background: #f7f8f0;
   padding: 0.8rem;
+}
+
+.report-output-box h4 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.report-averages-box {
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  background: #fdfdf7;
+  padding: 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.report-averages-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+}
+
+.mini-chart-card {
+  border: 1px solid #dbe2d3;
+  border-radius: 0.72rem;
+  background: #fff;
+  padding: 0.55rem;
+}
+
+.mini-chart-card p {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.mini-chart-card canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+.report-history-box {
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  background: #fdfdf7;
+  padding: 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.report-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.report-history-head p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.report-history-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 0.22rem;
+}
+
+.history-item {
+  height: auto;
+  min-height: 0;
+  border: 1px solid #d9e0d1;
+  border-radius: 0.62rem;
+  background: #fff;
+  padding: 0.48rem 0.56rem;
+  text-align: left;
+  color: var(--ink);
+  display: grid;
+  gap: 0.15rem;
+}
+
+.history-item strong {
+  font-size: 0.9rem;
+}
+
+.history-item small {
+  color: var(--ink-soft);
+}
+
+.history-item.active {
+  border-color: #9cb9a8;
+  background: #edf5ef;
 }
 
 .access-grid {
@@ -819,6 +936,10 @@ button:hover {
   }
 
   .report-fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-averages-grid {
     grid-template-columns: 1fr;
   }
 

@@ -194,6 +194,7 @@
           <div>
             <h2 id="report-modal-title">Informações semanais da celula</h2>
             <p class="panel-sub">Preencha presenca e dados da reuniao semanal.</p>
+            <p id="report-mode-note" class="report-mode-note" hidden></p>
           </div>
           <button type="button" class="ghost-btn modal-close" id="close-report-modal">Fechar</button>
         </div>
@@ -290,6 +291,28 @@
               <canvas id="report-chart" width="220" height="220"></canvas>
               <div id="report-chart-legend" class="chart-legend"></div>
             </div>
+            <section class="report-averages-box">
+              <h4>Medias dos ultimos 180 dias</h4>
+              <div class="report-averages-grid">
+                <article class="mini-chart-card">
+                  <p>Media da celula</p>
+                  <canvas id="cell-average-chart" width="170" height="170"></canvas>
+                  <div id="cell-average-legend" class="chart-legend"></div>
+                </article>
+                <article class="mini-chart-card">
+                  <p>Media geral</p>
+                  <canvas id="overall-average-chart" width="170" height="170"></canvas>
+                  <div id="overall-average-legend" class="chart-legend"></div>
+                </article>
+              </div>
+            </section>
+            <section class="report-history-box">
+              <div class="report-history-head">
+                <h4>Historico de relatorios</h4>
+                <p id="report-history-count"></p>
+              </div>
+              <div id="report-history-list" class="report-history-list"></div>
+            </section>
             <textarea
               id="report-output"
               rows="24"

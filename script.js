@@ -1,6 +1,7 @@
 ﻿const STORAGE_KEY = "renovo_celulas_v1";
 const SESSION_STORAGE_KEY = "renovo_session_v1";
 const USERS_STORAGE_KEY = "renovo_users_v1";
+const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 const state = loadState();
 let users = loadUsers();
@@ -27,11 +28,19 @@ const markAllAttendanceButton = document.getElementById("mark-all-attendance");
 const clearAttendanceButton = document.getElementById("clear-attendance");
 const copyReportButton = document.getElementById("copy-report");
 const reportOutput = document.getElementById("report-output");
+const generateReportButton = document.getElementById("generate-report-btn");
 const cellsList = document.getElementById("cells-list");
 const totalCells = document.getElementById("total-cells");
 const totalMembers = document.getElementById("total-members");
 const reportDateInput = reportForm.elements.namedItem("date");
 const statsSection = document.querySelector(".stats");
+const reportModeNote = document.getElementById("report-mode-note");
+const reportHistoryList = document.getElementById("report-history-list");
+const reportHistoryCount = document.getElementById("report-history-count");
+const cellAverageChart = document.getElementById("cell-average-chart");
+const cellAverageLegend = document.getElementById("cell-average-legend");
+const overallAverageChart = document.getElementById("overall-average-chart");
+const overallAverageLegend = document.getElementById("overall-average-legend");
 
 const createCellCard = document.getElementById("create-cell-card");
 const addMemberCard = document.getElementById("add-member-card");
@@ -73,13 +82,15 @@ const ROLE_LABELS = {
   pastor: "Pastor",
   admin: "Admin (nivel Pastor)",
 };
-const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
+const REPORT_AVERAGE_DAYS = 180;
 
 const ROLE_PERMISSIONS = {
   createCell: ["coordinator", "pastor", "admin"],
   manageMembers: ["coordinator", "pastor", "admin"],
-  submitReports: ["leader", "coordinator", "pastor", "admin"],
+  submitReports: ["leader", "admin"],
+  viewReports: ["leader", "coordinator", "pastor", "admin"],
   viewCells: ["coordinator", "pastor", "admin"],
+  deleteCell: ["admin"],
   manageAccess: ["pastor", "admin"],
 };
 
@@ -246,13 +257,16 @@ function bindAppEvents() {
   });
 
   weeklyReportCard?.addEventListener("click", () => {
-    if (!hasPermission("submitReports")) {
+    if (!hasPermission("viewReports")) {
       return;
     }
     renderReportCellOptions();
     applyInitialReportContext();
+    loadSavedReportIfExists();
     renderAttendanceList();
     renderLatestReport();
+    renderReportHistory();
+    applyReportMode();
     openModal(reportModal);
   });
 
@@ -539,16 +553,22 @@ function bindAppEvents() {
     loadSavedReportIfExists();
     renderAttendanceList();
     renderLatestReport();
-    const generateBtn = document.getElementById("generate-report-btn");
-    if (generateBtn) generateBtn.textContent = "Gerar relatorio";
+    renderReportHistory();
+    if (generateReportButton) {
+      generateReportButton.textContent = "Gerar relatorio";
+    }
+    applyReportMode();
   });
 
   reportDateInput.addEventListener("change", () => {
     loadSavedReportIfExists();
     renderAttendanceList();
     renderLatestReport();
-    const generateBtn = document.getElementById("generate-report-btn");
-    if (generateBtn) generateBtn.textContent = "Gerar relatorio";
+    renderReportHistory();
+    if (generateReportButton) {
+      generateReportButton.textContent = "Gerar relatorio";
+    }
+    applyReportMode();
   });
 
   markAllAttendanceButton.addEventListener("click", () => {
@@ -572,8 +592,7 @@ function bindAppEvents() {
   reportForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    const generateBtn = document.getElementById("generate-report-btn");
-    if (generateBtn && generateBtn.textContent === "Gerar novo relatorio") {
+    if (generateReportButton && generateReportButton.textContent === "Gerar novo relatorio") {
       const currentCellId = reportCellSelect.value;
       reportForm.reset();
       reportCellSelect.value = currentCellId;
@@ -581,7 +600,8 @@ function bindAppEvents() {
       renderAttendanceList();
       reportOutput.value = "";
       drawReportChart(0, 0, 0);
-      generateBtn.textContent = "Gerar relatorio";
+      renderReportHistory();
+      generateReportButton.textContent = "Gerar relatorio";
       return;
     }
 
@@ -637,12 +657,106 @@ function bindAppEvents() {
     const absentCount = cell.members.length - presentCount;
     reportOutput.value = buildReportText(reportData, cell);
     drawReportChart(presentCount, absentCount, reportData.visitorsCount);
+    renderReportHistory();
+    drawAverageCharts();
 
-    if (generateBtn) generateBtn.textContent = "Gerar novo relatorio";
+    if (generateReportButton) {
+      generateReportButton.textContent = "Gerar novo relatorio";
+    }
+  });
+
+  reportHistoryList?.addEventListener("click", (event) => {
+    const clickTarget = event.target;
+    if (!(clickTarget instanceof Element)) {
+      return;
+    }
+
+    const itemButton = clickTarget.closest("button[data-report-id]");
+    if (!itemButton) {
+      return;
+    }
+
+    const reportId = String(itemButton.dataset.reportId || "");
+    const selected = state.reports.find((report) => report.id === reportId);
+    if (!selected) {
+      return;
+    }
+
+    if (reportCellSelect.value !== selected.cellId) {
+      reportCellSelect.value = selected.cellId;
+      loadSavedReportIfExists();
+      renderAttendanceList();
+    }
+
+    reportDateInput.value = selected.date;
+    state.lastReportId = selected.id;
+    loadSavedReportIfExists();
+    renderAttendanceList();
+    renderLatestReport();
+    renderReportHistory();
+    applyReportMode();
   });
 
   cellsList.addEventListener("click", (event) => {
-    const head = event.target.closest(".cell-head");
+    const clickTarget = event.target;
+    if (!(clickTarget instanceof Element)) {
+      return;
+    }
+
+    const actionButton = clickTarget.closest("button[data-cell-action]");
+    if (actionButton) {
+      const action = String(actionButton.dataset.cellAction || "");
+      if (action === "delete") {
+        if (!hasPermission("deleteCell")) {
+          return;
+        }
+
+        const cellId = String(actionButton.dataset.cellId || "");
+        const cell = getCellById(cellId);
+        if (!cell) {
+          return;
+        }
+
+        const linkedReports = state.reports.filter((report) => report.cellId === cell.id).length;
+        const linkedLeaders = users.filter(
+          (user) => user.role === "leader" && normalizeName(user.assignedCellName) === normalizeName(cell.name)
+        ).length;
+
+        const shouldDelete =
+          typeof window !== "undefined" && typeof window.confirm === "function"
+            ? window.confirm(
+                `Excluir a celula ${cell.name}?\\nRelatorios vinculados: ${linkedReports}\\nLideres vinculados: ${linkedLeaders}`
+              )
+            : true;
+
+        if (!shouldDelete) {
+          return;
+        }
+
+        const typedCellName =
+          typeof window !== "undefined" && typeof window.prompt === "function"
+            ? window.prompt(`Digite o nome da celula para confirmar a exclusao:\\n${cell.name}`, "")
+            : null;
+
+        if (typedCellName === null) {
+          return;
+        }
+
+        if (normalizeName(typedCellName) !== normalizeName(cell.name)) {
+          if (typeof window !== "undefined" && typeof window.alert === "function") {
+            window.alert("Nome da celula diferente. Exclusao cancelada.");
+          }
+          return;
+        }
+
+        deleteCellAndRelated(cell.id);
+        collapsedCellIds.delete(cell.id);
+        persistAndRender();
+      }
+      return;
+    }
+
+    const head = clickTarget.closest(".cell-head");
     if (!head) {
       return;
     }
@@ -896,24 +1010,53 @@ function render() {
   renderReportCellOptions();
   applyInitialReportContext();
   renderCells();
+  loadSavedReportIfExists();
+  renderAttendanceList();
   renderLatestReport();
+  renderReportHistory();
+  applyReportMode();
   renderAccessUsers();
   autoOpenLeaderReportModal();
 }
 
 function renderAccessControl() {
   const roleLabel = ROLE_LABELS[session.role] || ROLE_LABELS.leader;
-  accessBadge.textContent = `Perfil ativo: ${roleLabel}`;
+  const isPastorJudson = session.role === "pastor" && normalizeUsername(session.username) === "pastor.judson";
+  accessBadge.textContent = isPastorJudson ? "Perfil ativo: Pastor Judson" : `Perfil ativo: ${roleLabel}`;
+  const isLeader = session.role === "leader";
 
   accessNote.textContent =
-    session.role === "leader"
+    isLeader
       ? `Acesso restrito para alimentar dados da celula ${session.assignedCellName || "-"}.`
+      : isPastorJudson
+        ? `Leitura de relatorios + gestao completa de acessos (ultimos ${REPORT_AVERAGE_DAYS} dias).`
+      : session.role === "coordinator"
+        ? `Acesso de coordenador: leitura de relatorios, historico e graficos (ultimos ${REPORT_AVERAGE_DAYS} dias).`
       : hasPermission("manageAccess")
         ? "Acesso administrativo total liberado (equivalente ao Pastor)."
         : "Acesso conforme seu nivel de permissao.";
 
   if (statsSection) {
-    statsSection.hidden = session.role === "leader";
+    statsSection.hidden = isLeader;
+  }
+
+  if (isLeader) {
+    if (createCellCard) {
+      createCellCard.hidden = true;
+    }
+    if (addMemberCard) {
+      addMemberCard.hidden = true;
+    }
+    if (viewCellsCard) {
+      viewCellsCard.hidden = true;
+    }
+    if (manageAccessCard) {
+      manageAccessCard.hidden = true;
+    }
+    if (weeklyReportCard) {
+      weeklyReportCard.hidden = false;
+    }
+    return;
   }
 
   if (createCellCard) {
@@ -921,7 +1064,7 @@ function renderAccessControl() {
   }
 
   if (addMemberCard) {
-    addMemberCard.hidden = session.role === "leader" || !hasPermission("manageMembers");
+    addMemberCard.hidden = !hasPermission("manageMembers");
   }
 
   if (viewCellsCard) {
@@ -929,7 +1072,7 @@ function renderAccessControl() {
   }
 
   if (weeklyReportCard) {
-    weeklyReportCard.hidden = !hasPermission("submitReports");
+    weeklyReportCard.hidden = !hasPermission("viewReports");
   }
 
   if (manageAccessCard) {
@@ -1002,6 +1145,7 @@ function renderReportCellOptions() {
 
 function renderCells() {
   const visibleCells = session?.role === "leader" ? getAccessibleCells() : state.cells;
+  const canDeleteCell = hasPermission("deleteCell");
 
   if (visibleCells.length === 0) {
     cellsList.innerHTML = '<p class="empty">Nenhuma celula cadastrada ainda.</p>';
@@ -1023,6 +1167,16 @@ function renderCells() {
                 return `<li>${escapeHtml(member.name)}${phone}</li>`;
               })
               .join("")}</ul>`;
+      const actionsMarkup = canDeleteCell
+        ? `<div class="cell-actions">
+             <button
+               type="button"
+               class="ghost-btn tiny-btn danger-btn"
+               data-cell-action="delete"
+               data-cell-id="${escapeHtml(cell.id)}"
+             >Excluir celula</button>
+           </div>`
+        : "";
 
       return `
         <article class="cell-card${collapsedCellIds.has(cell.id) ? " collapsed" : ""}" data-cell-id="${cell.id}" style="${animStyle}">
@@ -1035,6 +1189,7 @@ function renderCells() {
             <span class="toggle-icon" aria-hidden="true">&#9662;</span>
           </div>
           <div class="cell-body">
+            ${actionsMarkup}
             ${membersMarkup}
           </div>
         </article>
@@ -1059,12 +1214,19 @@ function renderAttendanceList() {
 
   const report = findReport(cell.id, reportDateInput.value);
   const selectedMembers = new Set(report ? report.presentMemberIds : []);
+  const disableAttendance = isReadOnlyReportRole() || !hasPermission("submitReports");
 
   attendanceList.innerHTML = cell.members
     .map(
       (member) => `
       <label class="attendance-item">
-        <input type="checkbox" name="presentMemberIds" value="${member.id}" ${selectedMembers.has(member.id) ? "checked" : ""} />
+        <input
+          type="checkbox"
+          name="presentMemberIds"
+          value="${member.id}"
+          ${selectedMembers.has(member.id) ? "checked" : ""}
+          ${disableAttendance ? "disabled" : ""}
+        />
         <span>${escapeHtml(member.name)}</span>
       </label>
     `
@@ -1073,32 +1235,106 @@ function renderAttendanceList() {
 }
 
 function renderLatestReport() {
-  const reportsPool =
-    session?.role === "leader"
-      ? state.reports.filter((report) => getAccessibleCells().some((cell) => cell.id === report.cellId))
-      : state.reports;
+  const reportsPool = getVisibleReportsPool();
 
   if (!reportsPool.length) {
     reportOutput.value = "";
     drawReportChart(0, 0, 0);
+    drawAverageCharts();
     return;
   }
 
-  const selected =
-    reportsPool.find((report) => report.id === state.lastReportId) || reportsPool[reportsPool.length - 1];
+  const selected = getSelectedReportFromContext(reportsPool);
   const cell = getCellById(selected.cellId);
   if (!cell) {
     reportOutput.value = "";
     drawReportChart(0, 0, 0);
+    drawAverageCharts();
     return;
   }
 
-  reportOutput.value = buildReportText(selected, cell);
+  state.lastReportId = selected.id;
+  if (reportDateInput.value !== selected.date) {
+    reportDateInput.value = selected.date;
+    loadSavedReportIfExists();
+  }
 
-  const presentIds = new Set(selected.presentMemberIds);
-  const present = cell.members.filter((m) => presentIds.has(m.id)).length;
-  const absent = cell.members.length - present;
+  reportOutput.value = buildReportText(selected, cell);
+  const stats = getReportStats(selected);
+  const present = stats.present;
+  const absent = stats.absent;
   drawReportChart(present, absent, selected.visitorsCount);
+  drawAverageCharts();
+}
+
+function getVisibleReportsPool() {
+  if (session?.role === "leader") {
+    const accessibleIds = new Set(getAccessibleCells().map((cell) => cell.id));
+    return state.reports.filter((report) => accessibleIds.has(report.cellId));
+  }
+  return state.reports.slice();
+}
+
+function getSelectedReportFromContext(reportsPool) {
+  const cellId = reportCellSelect.value;
+  const date = reportDateInput.value;
+  const sortedPool = reportsPool.slice().sort(compareReportsDesc);
+
+  if (cellId && date) {
+    const exact = sortedPool.find((report) => report.cellId === cellId && report.date === date);
+    if (exact) {
+      return exact;
+    }
+  }
+
+  if (cellId) {
+    const latestForCell = sortedPool.find((report) => report.cellId === cellId);
+    if (latestForCell) {
+      return latestForCell;
+    }
+  }
+
+  const byLastId = sortedPool.find((report) => report.id === state.lastReportId);
+  if (byLastId) {
+    return byLastId;
+  }
+
+  return sortedPool[0];
+}
+
+function compareReportsDesc(a, b) {
+  const aDate = parseReportDateToTime(a?.date);
+  const bDate = parseReportDateToTime(b?.date);
+  if (bDate !== aDate) {
+    return bDate - aDate;
+  }
+  const aCreated = new Date(a?.createdAt || 0).getTime();
+  const bCreated = new Date(b?.createdAt || 0).getTime();
+  return bCreated - aCreated;
+}
+
+function parseReportDateToTime(reportDate) {
+  const text = String(reportDate || "").trim();
+  if (!text) {
+    return 0;
+  }
+  const parsed = new Date(`${text}T00:00:00`).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getReportStats(report) {
+  const cell = getCellById(report?.cellId);
+  const present = Array.isArray(report?.presentMemberIds) ? report.presentMemberIds.length : 0;
+  const membersCount = cell?.members?.length || present;
+  const absent = Math.max(membersCount - present, 0);
+  const visitors = parseNonNegativeInt(report?.visitorsCount);
+  return {
+    present,
+    absent,
+    visitors,
+    totalPeople: present + visitors,
+    membersCount,
+  };
 }
 
 function loadSavedReportIfExists() {
@@ -1107,24 +1343,258 @@ function loadSavedReportIfExists() {
   const report = findReport(cellId, date);
   if (!report) {
     const cell = getCellById(cellId);
-    if (cell && !reportForm.elements.namedItem("leaders").value) {
-      reportForm.elements.namedItem("leaders").value = cell.leader || session?.name || "";
+    const leadersField = reportForm.elements.namedItem("leaders");
+    if (cell && leadersField && !leadersField.value) {
+      leadersField.value = cell.leader || session?.name || "";
     }
     return;
   }
 
-  reportForm.elements.namedItem("leaders").value = report.leaders;
-  reportForm.elements.namedItem("coLeaders").value = report.coLeaders;
-  reportForm.elements.namedItem("host").value = report.host;
-  reportForm.elements.namedItem("visitorsCount").value = String(report.visitorsCount);
-  reportForm.elements.namedItem("conversions").value = String(report.conversions);
-  reportForm.elements.namedItem("offering").value = String(report.offering);
-  reportForm.elements.namedItem("foods").value = report.foods;
-  reportForm.elements.namedItem("snack").value = report.snack;
-  reportForm.elements.namedItem("discipleship").value = report.discipleship;
-  reportForm.elements.namedItem("visits").value = report.visits;
-  reportForm.elements.namedItem("visitorNames").value = report.visitorNames.join("\n");
+  setFormFieldValue(reportForm, "leaders", report.leaders);
+  setFormFieldValue(reportForm, "coLeaders", report.coLeaders);
+  setFormFieldValue(reportForm, "host", report.host);
+  setFormFieldValue(reportForm, "visitorsCount", String(report.visitorsCount));
+  setFormFieldValue(reportForm, "conversions", String(report.conversions));
+  setFormFieldValue(reportForm, "offering", String(report.offering));
+  setFormFieldValue(reportForm, "foods", report.foods);
+  setFormFieldValue(reportForm, "snack", report.snack);
+  setFormFieldValue(reportForm, "discipleship", report.discipleship);
+  setFormFieldValue(reportForm, "visits", report.visits);
+  setFormFieldValue(reportForm, "visitorNames", report.visitorNames.join("\n"));
   state.lastReportId = report.id;
+}
+
+function setFormFieldValue(form, name, value) {
+  const field = form?.elements?.namedItem(name);
+  if (!field || !("value" in field)) {
+    return;
+  }
+  field.value = value;
+}
+
+function isReadOnlyReportRole() {
+  return session?.role === "coordinator" || session?.role === "pastor";
+}
+
+function applyReportMode() {
+  const readOnly = isReadOnlyReportRole();
+  const reportCellField = reportForm?.elements?.namedItem("cellId");
+  const reportDateField = reportForm?.elements?.namedItem("date");
+  const fieldsToDisable = [
+    "leaders",
+    "coLeaders",
+    "host",
+    "visitorsCount",
+    "foods",
+    "snack",
+    "discipleship",
+    "visits",
+    "visitorNames",
+    "offering",
+    "conversions",
+  ];
+
+  reportForm?.classList.toggle("readonly", readOnly);
+  if (reportModeNote) {
+    reportModeNote.hidden = !readOnly;
+    reportModeNote.textContent = readOnly
+      ? "Modo leitura (Coordenador/Pastor): relatorios sem edicao, com historico e medias de 180 dias."
+      : "";
+  }
+
+  if (reportCellField && "disabled" in reportCellField) {
+    reportCellField.disabled = session?.role === "leader";
+  }
+  if (reportDateField && "disabled" in reportDateField) {
+    reportDateField.disabled = readOnly;
+  }
+
+  for (const fieldName of fieldsToDisable) {
+    const field = reportForm?.elements?.namedItem(fieldName);
+    if (!field || !("disabled" in field)) {
+      continue;
+    }
+    field.disabled = readOnly;
+  }
+
+  attendanceList
+    ?.querySelectorAll('input[name="presentMemberIds"]')
+    .forEach((checkbox) => (checkbox.disabled = readOnly || !hasPermission("submitReports")));
+
+  if (markAllAttendanceButton) {
+    markAllAttendanceButton.hidden = readOnly || !hasPermission("submitReports");
+  }
+  if (clearAttendanceButton) {
+    clearAttendanceButton.hidden = readOnly || !hasPermission("submitReports");
+  }
+  if (generateReportButton) {
+    generateReportButton.hidden = readOnly || !hasPermission("submitReports");
+  }
+}
+
+function renderReportHistory() {
+  if (!reportHistoryList || !reportHistoryCount) {
+    return;
+  }
+
+  const selectedCellId = reportCellSelect.value;
+  const reports = getVisibleReportsPool()
+    .filter((report) => !selectedCellId || report.cellId === selectedCellId)
+    .sort(compareReportsDesc);
+
+  reportHistoryCount.textContent = `${reports.length} registro(s)`;
+
+  if (!reports.length) {
+    reportHistoryList.innerHTML = '<p class="attendance-empty">Nenhum relatorio encontrado para esta celula.</p>';
+    return;
+  }
+
+  const activeId =
+    getSelectedReportFromContext(reports)?.id ||
+    state.lastReportId ||
+    "";
+
+  reportHistoryList.innerHTML = reports
+    .map((report) => {
+      const stats = getReportStats(report);
+      const isActive = report.id === activeId;
+      return `
+        <button
+          type="button"
+          class="history-item${isActive ? " active" : ""}"
+          data-report-id="${escapeHtml(report.id)}"
+        >
+          <strong>${escapeHtml(formatDateForReport(report.date))}</strong>
+          <small>Presentes ${stats.present} | Faltaram ${stats.absent} | Visitantes ${stats.visitors}</small>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function drawAverageCharts() {
+  const selectedCellId = reportCellSelect.value;
+  const visibleReports = getVisibleReportsPool();
+  const cutoffTime = getCutoffTimeForDays(REPORT_AVERAGE_DAYS);
+  const within180 = visibleReports.filter((report) => parseReportDateToTime(report.date) >= cutoffTime);
+  const cellReports = within180.filter((report) => report.cellId === selectedCellId);
+
+  const cellAverage = computeAverageStats(cellReports);
+  const overallAverage = computeAverageStats(within180);
+
+  drawMiniDonutChart(cellAverageChart, cellAverageLegend, cellAverage.present, cellAverage.absent, cellAverage.visitors);
+  drawMiniDonutChart(
+    overallAverageChart,
+    overallAverageLegend,
+    overallAverage.present,
+    overallAverage.absent,
+    overallAverage.visitors
+  );
+}
+
+function getCutoffTimeForDays(days) {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(end);
+  start.setDate(start.getDate() - (days - 1));
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+function computeAverageStats(reports) {
+  if (!reports.length) {
+    return { present: 0, absent: 0, visitors: 0 };
+  }
+
+  const sum = reports.reduce(
+    (acc, report) => {
+      const stats = getReportStats(report);
+      acc.present += stats.present;
+      acc.absent += stats.absent;
+      acc.visitors += stats.visitors;
+      return acc;
+    },
+    { present: 0, absent: 0, visitors: 0 }
+  );
+
+  return {
+    present: roundMetric(sum.present / reports.length),
+    absent: roundMetric(sum.absent / reports.length),
+    visitors: roundMetric(sum.visitors / reports.length),
+  };
+}
+
+function roundMetric(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function drawMiniDonutChart(canvas, legend, present, absent, visitors) {
+  if (!canvas || !legend) {
+    return;
+  }
+
+  const total = present + absent + visitors;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (total <= 0) {
+    legend.innerHTML = '<span class="chart-legend-item">Sem dados no periodo.</span>';
+    return;
+  }
+
+  const slices = [
+    { value: present, color: "#2d8a5e", label: "Presentes" },
+    { value: absent, color: "#c0392b", label: "Faltaram" },
+    { value: visitors, color: "#2980b9", label: "Visitantes" },
+  ];
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = Math.min(cx, cy) - 10;
+  const innerRadius = radius * 0.54;
+  let startAngle = -Math.PI / 2;
+
+  for (const slice of slices) {
+    if (slice.value <= 0) {
+      continue;
+    }
+    const angle = (slice.value / total) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, startAngle, startAngle + angle);
+    ctx.closePath();
+    ctx.fillStyle = slice.color;
+    ctx.fill();
+    startAngle += angle;
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#1f2a24";
+  ctx.font = "bold 16px sans-serif";
+  ctx.fillText(String(roundMetric(total)), cx, cy - 7);
+  ctx.font = "11px sans-serif";
+  ctx.fillStyle = "#4d5d54";
+  ctx.fillText("media", cx, cy + 10);
+
+  legend.innerHTML = slices
+    .map(
+      (slice) => `
+      <span class="chart-legend-item">
+        <span class="chart-legend-dot" style="background:${slice.color}"></span>
+        ${escapeHtml(slice.label)}: <strong>${roundMetric(slice.value)}</strong>
+      </span>
+    `
+    )
+    .join("");
 }
 
 function upsertReport(reportData) {
@@ -1155,6 +1625,51 @@ function findReport(cellId, date) {
 
 function getCellById(cellId) {
   return state.cells.find((cell) => cell.id === cellId) || null;
+}
+
+function deleteCellAndRelated(cellId) {
+  const cell = getCellById(cellId);
+  if (!cell) {
+    return;
+  }
+
+  const normalizedCellName = normalizeName(cell.name);
+  state.cells = state.cells.filter((entry) => entry.id !== cellId);
+
+  const removedReportIds = new Set(state.reports.filter((report) => report.cellId === cellId).map((report) => report.id));
+  state.reports = state.reports.filter((report) => report.cellId !== cellId);
+
+  if (removedReportIds.has(state.lastReportId)) {
+    const latest = state.reports.slice().sort(compareReportsDesc)[0] || null;
+    state.lastReportId = latest ? latest.id : null;
+  }
+
+  let usersChanged = false;
+  users = users.map((user) => {
+    if (user.role !== "leader") {
+      return user;
+    }
+    if (normalizeName(user.assignedCellName) !== normalizedCellName) {
+      return user;
+    }
+    usersChanged = true;
+    return {
+      ...user,
+      assignedCellName: "",
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  if (usersChanged) {
+    saveUsers(users);
+    if (session) {
+      const current = users.find((user) => user.id === session.id);
+      if (current) {
+        session = buildSessionFromUser(current);
+        saveSession(session);
+      }
+    }
+  }
 }
 
 function getAccessibleCells() {
@@ -1504,6 +2019,18 @@ function ensureDefaultUsers() {
     });
   }
 
+  if (!users.some((entry) => normalizeUsername(entry.username) === "pastor.judson")) {
+    users.push({
+      id: "pastor-judson",
+      name: "Pastor Judson",
+      username: "pastor.judson",
+      password: "123456",
+      role: "pastor",
+      assignedCellName: "",
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   saveUsers(users);
 }
 
@@ -1767,6 +2294,33 @@ function seedInitialDataIfEmpty() {
     }
   }
 
+  const cinzaCellForMembers = state.cells.find((c) => normalizeName(c.name) === "cinza");
+  if (cinzaCellForMembers) {
+    const cinzaRequiredMembers = [
+      "Jander",
+      "Aline",
+      "Amanda Rayssa",
+      "Amanda",
+      "Daniel",
+      "Luiz",
+      "Manu",
+      "Ray",
+      "Mayara",
+      "Ana",
+      "Rebeca",
+      "Liz",
+      "Mariana",
+    ];
+
+    const existingCinzaNames = new Set(cinzaCellForMembers.members.map((member) => normalizeName(member.name)));
+    for (const memberName of cinzaRequiredMembers) {
+      if (!existingCinzaNames.has(normalizeName(memberName))) {
+        cinzaCellForMembers.members.push(mkMember(memberName));
+        stateChanged = true;
+      }
+    }
+  }
+
   const pretaCell = state.cells.find((c) => normalizeName(c.name) === "preta");
   if (pretaCell && state.reports.length === 0) {
     const presentNames = [
@@ -1796,6 +2350,47 @@ function seedInitialDataIfEmpty() {
     };
     state.reports.push(initialReport);
     state.lastReportId = initialReport.id;
+    stateChanged = true;
+  }
+
+  const cinzaCell = state.cells.find((c) => normalizeName(c.name) === "cinza");
+  const cinzaReportDate = "2026-01-23";
+  if (cinzaCell && !state.reports.some((r) => r.cellId === cinzaCell.id && r.date === cinzaReportDate)) {
+    const cinzaPresentNames = [
+      "Aline",
+      "Jander",
+      "Mariana",
+      "Mayara",
+      "Ana",
+      "Luiz",
+      "Manu",
+      "Ray",
+    ];
+
+    const cinzaPresentMemberIds = cinzaCell.members
+      .filter((member) => cinzaPresentNames.some((name) => normalizeName(name) === normalizeName(member.name)))
+      .map((member) => member.id);
+
+    const cinzaReport = {
+      id: createId(),
+      cellId: cinzaCell.id,
+      date: cinzaReportDate,
+      leaders: "Jander e Aline",
+      coLeaders: "",
+      host: "Luiz e Manu",
+      presentMemberIds: cinzaPresentMemberIds,
+      visitorsCount: 0,
+      visitorNames: [],
+      offering: 0,
+      foods: "Nao",
+      snack: "Nao",
+      discipleship: "Sim",
+      visits: "Nao",
+      conversions: 0,
+      createdAt: new Date("2026-01-23T22:00:00").toISOString(),
+    };
+
+    state.reports.push(cinzaReport);
     stateChanged = true;
   }
 
