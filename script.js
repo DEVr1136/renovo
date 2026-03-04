@@ -613,6 +613,12 @@ function bindAppEvents() {
     upsertReport(reportData);
     state.lastReportId = reportData.id;
     persistAndRender();
+
+    const presentIds = new Set(reportData.presentMemberIds);
+    const presentCount = cell.members.filter((m) => presentIds.has(m.id)).length;
+    const absentCount = cell.members.length - presentCount;
+    reportOutput.value = buildReportText(reportData, cell);
+    drawReportChart(presentCount, absentCount, reportData.visitorsCount);
   });
 
   cellsList.addEventListener("click", (event) => {
