@@ -1633,10 +1633,6 @@ function ensureLeaderCellForSession() {
 }
 
 function seedInitialDataIfEmpty() {
-  if (state.cells.length > 0) {
-    return;
-  }
-
   const mkMember = (name) => ({ id: createId(), name, phone: "" });
 
   const cellDefs = [
@@ -1728,21 +1724,25 @@ function seedInitialDataIfEmpty() {
 
   const now = new Date().toISOString();
 
+  let stateChanged = false;
   for (const def of cellDefs) {
-    state.cells.push({
-      id: createId(),
-      name: def.name,
-      neighborhood: "Nao informado",
-      meetingDay: def.meetingDay,
-      meetingTime: "20:00",
-      leader: def.leader,
-      members: def.members.map(mkMember),
-      createdAt: now,
-    });
+    if (!state.cells.some((c) => normalizeName(c.name) === normalizeName(def.name))) {
+      state.cells.push({
+        id: createId(),
+        name: def.name,
+        neighborhood: "Nao informado",
+        meetingDay: def.meetingDay,
+        meetingTime: "20:00",
+        leader: def.leader,
+        members: def.members.map(mkMember),
+        createdAt: now,
+      });
+      stateChanged = true;
+    }
   }
 
   const pretaCell = state.cells.find((c) => normalizeName(c.name) === "preta");
-  if (pretaCell) {
+  if (pretaCell && state.reports.length === 0) {
     const presentNames = [
       "Filipe", "Sabrina", "Mikael", "Ian Vieira", "Eliel", "Deivid",
       "Jonathan", "Leo", "Leticia", "Vitor", "Guilherme", "Dryka", "Soraia", "Thifanny", "Mikaelly", "Ana",
@@ -1770,9 +1770,10 @@ function seedInitialDataIfEmpty() {
     };
     state.reports.push(initialReport);
     state.lastReportId = initialReport.id;
+    stateChanged = true;
   }
 
-  saveState(state);
+  if (stateChanged) saveState(state);
 
   const leaderDefs = [
     { name: "Sabrina",   username: "sabrina.preta",        assignedCellName: "Preta" },
