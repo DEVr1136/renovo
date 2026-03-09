@@ -1519,10 +1519,9 @@ function drawLineChart(cellId) {
     return { label: formatDateForReport(r.date).slice(0, 5), present: stats.present, absent: stats.absent, visitors: stats.visitors };
   });
 
-  const legend = document.getElementById("report-line-legend");
-  if (data.length < 2) { canvas.hidden = true; if (legend) legend.hidden = true; return; }
-  canvas.hidden = false;
-  if (legend) legend.hidden = false;
+  const wrap = document.getElementById("report-line-wrap");
+  if (data.length < 2) { if (wrap) wrap.hidden = true; return; }
+  if (wrap) wrap.hidden = false;
 
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
