@@ -246,10 +246,6 @@
 
             <div class="report-fields-grid">
               <label>
-                Visitantes (qtd)
-                <input type="number" name="visitorsCount" min="0" value="0" required />
-              </label>
-              <label>
                 Alimentos
                 <select name="foods" required>
                   <option>Sim</option>
@@ -279,10 +275,24 @@
               </label>
             </div>
 
-            <label>
-              Nomes dos visitantes (um por linha, opcional)
-              <textarea name="visitorNames" rows="4" placeholder="Visitante 1&#10;Visitante 2"></textarea>
-            </label>
+            <div class="visitors-section">
+              <div class="visitors-section-head">
+                <span class="visitors-section-label">Visitantes</span>
+                <button type="button" id="add-visitor-btn" class="ghost-btn small-btn">+ Adicionar</button>
+              </div>
+              <div id="visitors-list"></div>
+              <div id="visitor-inline-form" hidden>
+                <div class="visitor-form-fields">
+                  <input id="visitor-name-input" placeholder="Nome *" />
+                  <input id="visitor-address-input" placeholder="Endereço (opcional)" />
+                  <input id="visitor-phone-input" placeholder="Telefone (opcional)" />
+                </div>
+                <div class="visitor-form-actions">
+                  <button type="button" id="visitor-save-btn">Salvar</button>
+                  <button type="button" id="visitor-cancel-btn" class="ghost-btn">Cancelar</button>
+                </div>
+              </div>
+            </div>
 
             <button type="submit" id="generate-report-btn">Gerar relatorio</button>
           </form>

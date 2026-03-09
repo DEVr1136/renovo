@@ -609,6 +609,95 @@ button:hover {
   gap: 0.7rem;
 }
 
+.visitors-section {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+}
+
+.visitors-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.visitors-section-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.small-btn {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.visitor-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  gap: 0.5rem;
+}
+
+.visitor-entry:last-child {
+  border-bottom: none;
+}
+
+.visitor-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.visitor-entry-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.visitor-entry-detail {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.visitor-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+  min-height: 0;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.visitor-remove-btn:hover {
+  color: #c0392b;
+}
+
+.visitor-form-fields {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.visitor-form-fields input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.visitor-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
 .report-output-box {
   border: 1px solid var(--line);
   border-radius: 0.92rem;

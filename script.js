@@ -73,6 +73,7 @@ const accessNote = document.getElementById("access-note");
 
 let hasAppliedInitialReportContext = false;
 let hasAutoOpenedLeaderReport = false;
+let currentVisitors = [];
 let prevCellIds = new Set();
 const collapsedCellIds = new Set();
 
@@ -598,6 +599,52 @@ function bindAppEvents() {
     });
   });
 
+  const addVisitorBtn = document.getElementById("add-visitor-btn");
+  const visitorInlineForm = document.getElementById("visitor-inline-form");
+  const visitorNameInput = document.getElementById("visitor-name-input");
+  const visitorAddressInput = document.getElementById("visitor-address-input");
+  const visitorPhoneInput = document.getElementById("visitor-phone-input");
+  const visitorSaveBtn = document.getElementById("visitor-save-btn");
+  const visitorCancelBtn = document.getElementById("visitor-cancel-btn");
+  const visitorsList = document.getElementById("visitors-list");
+
+  addVisitorBtn?.addEventListener("click", () => {
+    if (visitorInlineForm) visitorInlineForm.hidden = false;
+    if (visitorNameInput) visitorNameInput.focus();
+  });
+
+  visitorSaveBtn?.addEventListener("click", () => {
+    const name = visitorNameInput?.value.trim();
+    if (!name) { if (visitorNameInput) visitorNameInput.focus(); return; }
+    currentVisitors.push({
+      name,
+      address: visitorAddressInput?.value.trim() || "",
+      phone: visitorPhoneInput?.value.trim() || "",
+    });
+    if (visitorNameInput) visitorNameInput.value = "";
+    if (visitorAddressInput) visitorAddressInput.value = "";
+    if (visitorPhoneInput) visitorPhoneInput.value = "";
+    if (visitorInlineForm) visitorInlineForm.hidden = true;
+    renderVisitorsList();
+  });
+
+  visitorCancelBtn?.addEventListener("click", () => {
+    if (visitorInlineForm) visitorInlineForm.hidden = true;
+    if (visitorNameInput) visitorNameInput.value = "";
+    if (visitorAddressInput) visitorAddressInput.value = "";
+    if (visitorPhoneInput) visitorPhoneInput.value = "";
+  });
+
+  visitorsList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".visitor-remove-btn");
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.index, 10);
+    if (!isNaN(idx)) {
+      currentVisitors.splice(idx, 1);
+      renderVisitorsList();
+    }
+  });
+
   reportForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
@@ -607,6 +654,8 @@ function bindAppEvents() {
       reportCellSelect.value = currentCellId;
       reportDateInput.value = todayIsoDate();
       renderAttendanceList();
+      currentVisitors = [];
+      renderVisitorsList();
       reportOutput.value = "";
       drawReportChart(0, 0, 0);
       renderReportHistory();
@@ -636,8 +685,9 @@ function bindAppEvents() {
       return;
     }
 
-    const visitorNames = parseLines(formData.get("visitorNames"));
-    const visitorsCountInput = parseNonNegativeInt(formData.get("visitorsCount"));
+    const visitorNames = currentVisitors.map((v) => v.name);
+    const visitorsCountInput = currentVisitors.length;
+    const visitorDetails = currentVisitors.map((v) => ({ name: v.name, address: v.address, phone: v.phone }));
     const reportData = {
       id: createId(),
       cellId,
@@ -646,8 +696,9 @@ function bindAppEvents() {
       coLeaders: String(formData.get("coLeaders") || "").trim(),
       host: String(formData.get("host") || "").trim(),
       presentMemberIds: Array.from(new Set(formData.getAll("presentMemberIds").map((value) => String(value)))),
-      visitorsCount: Math.max(visitorsCountInput, visitorNames.length),
+      visitorsCount: visitorsCountInput,
       visitorNames,
+      visitorDetails,
       offering: parseNonNegativeNumber(formData.get("offering")),
       foods: String(formData.get("foods") || "Nao").trim(),
       snack: String(formData.get("snack") || "Nao").trim(),
@@ -1366,14 +1417,16 @@ function loadSavedReportIfExists() {
   setFormFieldValue(reportForm, "leaders", report.leaders);
   setFormFieldValue(reportForm, "coLeaders", report.coLeaders);
   setFormFieldValue(reportForm, "host", report.host);
-  setFormFieldValue(reportForm, "visitorsCount", String(report.visitorsCount));
   setFormFieldValue(reportForm, "conversions", String(report.conversions));
   setFormFieldValue(reportForm, "offering", String(report.offering));
   setFormFieldValue(reportForm, "foods", report.foods);
   setFormFieldValue(reportForm, "snack", report.snack);
   setFormFieldValue(reportForm, "discipleship", report.discipleship);
   setFormFieldValue(reportForm, "visits", report.visits);
-  setFormFieldValue(reportForm, "visitorNames", report.visitorNames.join("\n"));
+  currentVisitors = Array.isArray(report.visitorDetails) && report.visitorDetails.length > 0
+    ? report.visitorDetails.map((v) => ({ name: String(v.name || ""), address: String(v.address || ""), phone: String(v.phone || "") }))
+    : (Array.isArray(report.visitorNames) ? report.visitorNames.map((n) => ({ name: n, address: "", phone: "" })) : []);
+  renderVisitorsList();
   state.lastReportId = report.id;
 }
 
@@ -2219,6 +2272,9 @@ function normalizeReport(report) {
     visitorNames: Array.isArray(report.visitorNames)
       ? report.visitorNames.map((name) => String(name).trim()).filter(Boolean)
       : [],
+    visitorDetails: Array.isArray(report.visitorDetails)
+      ? report.visitorDetails.map((v) => ({ name: String(v?.name || "").trim(), address: String(v?.address || "").trim(), phone: String(v?.phone || "").trim() })).filter((v) => v.name)
+      : [],
     offering: parseNonNegativeNumber(report.offering),
     foods: String(report.foods || "Nao").trim(),
     snack: String(report.snack || "Nao").trim(),
@@ -2606,6 +2662,25 @@ function drawReportChart(present, absent, visitors) {
     `
     )
     .join("");
+}
+
+function renderVisitorsList() {
+  const list = document.getElementById("visitors-list");
+  if (!list) return;
+  if (currentVisitors.length === 0) {
+    list.innerHTML = "";
+    return;
+  }
+  list.innerHTML = currentVisitors.map((v, i) => `
+    <div class="visitor-entry">
+      <div class="visitor-entry-info">
+        <span class="visitor-entry-name">${escapeHtml(v.name)}</span>
+        ${v.address ? `<span class="visitor-entry-detail">📍 ${escapeHtml(v.address)}</span>` : ""}
+        ${v.phone ? `<span class="visitor-entry-detail">📞 ${escapeHtml(v.phone)}</span>` : ""}
+      </div>
+      <button type="button" class="visitor-remove-btn" data-index="${i}" aria-label="Remover visitante">✕</button>
+    </div>
+  `).join("");
 }
 
 function escapeHtml(value) {
