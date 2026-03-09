@@ -134,6 +134,15 @@ function bindAuthEvents() {
   registerRoleSelect?.addEventListener("change", syncRegisterFormRoleFields);
   syncRegisterFormRoleFields();
 
+  const togglePasswordBtn = document.getElementById("toggle-password");
+  const passwordInput = loginForm?.querySelector('input[name="password"]');
+  togglePasswordBtn?.addEventListener("click", () => {
+    const showing = passwordInput.type === "text";
+    passwordInput.type = showing ? "password" : "text";
+    togglePasswordBtn.classList.toggle("eye-visible", !showing);
+    togglePasswordBtn.setAttribute("aria-label", showing ? "Mostrar senha" : "Ocultar senha");
+  });
+
   loginForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(loginForm);
@@ -1265,6 +1274,7 @@ function renderLatestReport() {
   const absent = stats.absent;
   drawReportChart(present, absent, selected.visitorsCount);
   drawAverageCharts();
+  drawLineChart(reportCellSelect.value);
 }
 
 function getVisibleReportsPool() {
@@ -1490,6 +1500,68 @@ function drawAverageCharts() {
     overallAverage.absent,
     overallAverage.visitors
   );
+}
+
+function drawLineChart(cellId) {
+  const canvas = document.getElementById("report-line-chart");
+  if (!canvas) return;
+
+  const pool = getVisibleReportsPool()
+    .filter((r) => r.cellId === cellId)
+    .sort((a, b) => parseReportDateToTime(a.date) - parseReportDateToTime(b.date));
+
+  const MAX_POINTS = 12;
+  const data = pool.slice(-MAX_POINTS).map((r) => {
+    const stats = getReportStats(r);
+    return { label: formatDateForReport(r.date).slice(0, 5), present: stats.present, visitors: stats.visitors };
+  });
+
+  if (data.length < 2) { canvas.hidden = true; return; }
+  canvas.hidden = false;
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const pad = { top: 16, right: 12, bottom: 30, left: 28 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+  const yMax = Math.max(...data.map((d) => d.present + d.visitors), 1);
+  const n = data.length;
+  const toX = (i) => pad.left + (i / (n - 1)) * cW;
+  const toY = (v) => pad.top + (1 - v / yMax) * cH;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const drawLine = (getValue, color, fillAlpha) => {
+    ctx.beginPath();
+    data.forEach((d, i) => { const x = toX(i), y = toY(getValue(d)); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    if (fillAlpha) {
+      ctx.lineTo(toX(n - 1), pad.top + cH);
+      ctx.lineTo(toX(0), pad.top + cH);
+      ctx.closePath();
+      ctx.fillStyle = color.replace(")", `,${fillAlpha})`).replace("rgb", "rgba");
+      ctx.fill();
+      ctx.beginPath();
+      data.forEach((d, i) => { const x = toX(i), y = toY(getValue(d)); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    data.forEach((d, i) => { ctx.beginPath(); ctx.arc(toX(i), toY(getValue(d)), 3, 0, Math.PI * 2); ctx.fill(); });
+  };
+
+  drawLine((d) => d.present + d.visitors, "rgb(45,138,94)", 0.09);
+  drawLine((d) => d.visitors, "rgb(41,128,185)", 0);
+
+  const step = n > 8 ? 2 : 1;
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#4d5d54";
+  data.forEach((d, i) => { if (i % step === 0) ctx.fillText(d.label, toX(i), H - pad.bottom + 11); });
+
+  ctx.textAlign = "right";
+  ctx.fillText(String(yMax), pad.left - 3, pad.top + 4);
+  ctx.fillText("0", pad.left - 3, pad.top + cH + 4);
 }
 
 function getCutoffTimeForDays(days) {

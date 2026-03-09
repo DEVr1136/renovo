@@ -85,6 +85,40 @@ body.modal-open {
   gap: 0.8rem;
 }
 
+.password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrap input {
+  flex: 1;
+  padding-right: 2.4rem;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  height: auto;
+  min-height: 0;
+  line-height: 1;
+}
+
+.eye-btn:hover {
+  color: var(--brand);
+}
+
+.eye-btn.eye-visible svg {
+  opacity: 0.4;
+}
+
 .register-form {
   margin-top: 0.8rem;
 }
@@ -639,6 +673,13 @@ button:hover {
   margin: 0;
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+#report-line-chart {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 0.2rem;
+  border-radius: 0.5rem;
 }
 
 .report-history-list {
