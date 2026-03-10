@@ -9,6 +9,8 @@ ensureDefaultUsers();
 let session = loadSession();
 
 const authScreen = document.getElementById("auth-screen");
+const homeScreen = document.getElementById("home-screen");
+const visitorFormScreen = document.getElementById("visitor-form-screen");
 const appShell = document.getElementById("app-shell");
 const loginForm = document.getElementById("login-form");
 const registerForm = document.getElementById("register-form");
@@ -1017,9 +1019,6 @@ function initializeApp() {
   showHomeScreen();
   render();
 }
-
-const homeScreen = document.getElementById("home-screen");
-const visitorFormScreen = document.getElementById("visitor-form-screen");
 
 function showAuthScreen() {
   authScreen.hidden = false;
