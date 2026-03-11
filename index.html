@@ -1,16 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Renovo Celulas</title>
-    <meta name="theme-color" content="#c92f2f" />
+    <meta name="theme-color" content="#8b0d12" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260311c" />
   </head>
   <body>
     <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <!-- TELA INICIAL (pós login) -->
+    <!-- TELA INICIAL (pÃ³s login) -->
     <div id="home-screen" hidden>
       <main class="page home-page">
         <header class="hero">
@@ -61,21 +61,21 @@
 
         <section class="home-cards">
           <button class="home-card home-card-celulas" id="go-to-celulas" type="button">
-            <span class="home-card-icon">🌿</span>
-            <strong>Ambiente de Células</strong>
-            <small>Gerencie células, membros e relatórios semanais.</small>
+            <span class="home-card-icon">ðŸŒ¿</span>
+            <strong>Ambiente de CÃ©lulas</strong>
+            <small>Gerencie cÃ©lulas, membros e relatÃ³rios semanais.</small>
           </button>
 
           <button class="home-card home-card-visitantes" id="go-to-visitor-form" type="button">
-            <span class="home-card-icon">🤝</span>
+            <span class="home-card-icon">ðŸ¤</span>
             <strong>Cadastro de Visitantes</strong>
-            <small>Registre visitantes que chegaram à Igreja Renovo.</small>
+            <small>Registre visitantes que chegaram Ã  Igreja Renovo.</small>
           </button>
         </section>
       </main>
     </div>
 
-    <!-- TELA FORMULÁRIO DE VISITANTES (inline) -->
+    <!-- TELA FORMULÃRIO DE VISITANTES (inline) -->
     <div id="visitor-form-screen" hidden>
       <main class="page">
         <header class="hero">
@@ -84,7 +84,7 @@
               <p class="eyebrow">Igreja Renovo</p>
               <h1>Cadastro de Visitantes</h1>
             </div>
-            <button id="visitor-form-back" type="button" class="ghost-btn">← Voltar</button>
+            <button id="visitor-form-back" type="button" class="ghost-btn">â† Voltar</button>
           </div>
           <p class="subtitle">Preencha os dados do visitante.</p>
         </header>
@@ -92,20 +92,20 @@
         <div class="visitor-reg-wrap">
           <div class="auth-card">
             <div id="visitor-reg-success" class="pub-success" hidden>
-              <div class="pub-success-icon">✓</div>
+              <div class="pub-success-icon">âœ“</div>
               <h2>Cadastro realizado!</h2>
-              <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abençoe você e sua família!</p>
+              <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abenÃ§oe vocÃª e sua famÃ­lia!</p>
               <button type="button" id="visitor-reg-new-btn">Novo cadastro</button>
             </div>
 
             <form id="visitor-reg-form-inline" class="pub-form">
-              <p class="required-note">* Campo obrigatório</p>
+              <p class="required-note">* Campo obrigatÃ³rio</p>
               <label>
                 Nome completo *
                 <input name="name" required maxlength="100" placeholder="Nome completo" autocomplete="name" />
               </label>
               <label>
-                Endereço
+                EndereÃ§o
                 <input name="address" maxlength="200" placeholder="Rua, bairro, cidade" />
               </label>
               <label>
@@ -181,7 +181,7 @@
           <button class="action-card action-card-report" id="weekly-report-card" type="button">
             <span class="action-icon">&#128203;</span>
             <span class="action-content">
-              <strong>Informações semanais</strong>
+              <strong>InformaÃ§Ãµes semanais</strong>
               <small>Preencha presenca e dados da reuniao semanal.</small>
             </span>
           </button>
@@ -285,12 +285,12 @@
       </div>
     </div>
 
-    <!-- MODAL: Informações semanais -->
+    <!-- MODAL: InformaÃ§Ãµes semanais -->
     <div class="modal-backdrop" id="report-modal" hidden>
       <div class="modal-card modal-card-xl" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
         <div class="modal-head">
           <div>
-            <h2 id="report-modal-title">Informações semanais da celula</h2>
+            <h2 id="report-modal-title">InformaÃ§Ãµes semanais da celula</h2>
             <p class="panel-sub">Preencha presenca e dados da reuniao semanal.</p>
             <p id="report-mode-note" class="report-mode-note" hidden></p>
           </div>
@@ -377,7 +377,7 @@
               <div id="visitor-inline-form" hidden>
                 <div class="visitor-form-fields">
                   <input id="visitor-name-input" placeholder="Nome *" />
-                  <input id="visitor-address-input" placeholder="Endereço (opcional)" />
+                  <input id="visitor-address-input" placeholder="EndereÃ§o (opcional)" />
                   <input id="visitor-phone-input" placeholder="Telefone (opcional)" />
                 </div>
                 <div class="visitor-form-actions">
@@ -389,7 +389,7 @@
 
             <div class="images-section" id="report-images-section">
               <div class="images-section-head">
-                <span class="images-section-label">Fotos da célula</span>
+                <span class="images-section-label">Fotos da cÃ©lula</span>
                 <span id="images-count-label" class="images-count"></span>
                 <button type="button" id="add-image-btn" class="ghost-btn small-btn">+ Adicionar foto</button>
               </div>
@@ -432,9 +432,9 @@
               <div id="report-line-wrap" hidden>
                 <canvas id="report-line-chart" width="340" height="130"></canvas>
                 <div id="report-line-legend" class="chart-legend">
-                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#2d8a5e"></span>Presentes</span>
-                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#c0392b"></span>Faltantes</span>
-                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#2980b9"></span>Visitantes</span>
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#7a1118"></span>Presentes</span>
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b9343a"></span>Faltantes</span>
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b68a64"></span>Visitantes</span>
                 </div>
               </div>
               <div id="report-history-list" class="report-history-list"></div>
@@ -528,13 +528,39 @@
       </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20260311c"></script>
     <script>
       if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+        window.addEventListener("load", async () => {
+          try {
+            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-11-c");
+            await registration.update();
+
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+
+            registration.addEventListener("updatefound", () => {
+              const newWorker = registration.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: "SKIP_WAITING" });
+                }
+              });
+            });
+
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              if (refreshing) return;
+              refreshing = true;
+              window.location.reload();
+            });
+          } catch (_) {}
         });
       }
     </script>
   </body>
 </html>
+
+
