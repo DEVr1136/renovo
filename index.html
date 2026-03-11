@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <!-- TELA INICIAL (pÃ³s login) -->
+    <!-- TELA INICIAL (pós login) -->
     <div id="home-screen" hidden>
       <main class="page home-page">
         <header class="hero">
@@ -61,21 +61,21 @@
 
         <section class="home-cards">
           <button class="home-card home-card-celulas" id="go-to-celulas" type="button">
-            <span class="home-card-icon">ðŸŒ¿</span>
-            <strong>Ambiente de CÃ©lulas</strong>
-            <small>Gerencie cÃ©lulas, membros e relatÃ³rios semanais.</small>
+            <span class="home-card-icon">🌿</span>
+            <strong>Ambiente de Células</strong>
+            <small>Gerencie células, membros e relatórios semanais.</small>
           </button>
 
           <button class="home-card home-card-visitantes" id="go-to-visitor-form" type="button">
-            <span class="home-card-icon">ðŸ¤</span>
+            <span class="home-card-icon">🤝</span>
             <strong>Cadastro de Visitantes</strong>
-            <small>Registre visitantes que chegaram Ã  Igreja Renovo.</small>
+            <small>Registre visitantes que chegaram à Igreja Renovo.</small>
           </button>
         </section>
       </main>
     </div>
 
-    <!-- TELA FORMULÃRIO DE VISITANTES (inline) -->
+    <!-- TELA FORMULÁRIO DE VISITANTES (inline) -->
     <div id="visitor-form-screen" hidden>
       <main class="page">
         <header class="hero">
@@ -84,7 +84,7 @@
               <p class="eyebrow">Igreja Renovo</p>
               <h1>Cadastro de Visitantes</h1>
             </div>
-            <button id="visitor-form-back" type="button" class="ghost-btn">â† Voltar</button>
+            <button id="visitor-form-back" type="button" class="ghost-btn">← Voltar</button>
           </div>
           <p class="subtitle">Preencha os dados do visitante.</p>
         </header>
@@ -92,20 +92,20 @@
         <div class="visitor-reg-wrap">
           <div class="auth-card">
             <div id="visitor-reg-success" class="pub-success" hidden>
-              <div class="pub-success-icon">âœ“</div>
+              <div class="pub-success-icon">✓</div>
               <h2>Cadastro realizado!</h2>
-              <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abenÃ§oe vocÃª e sua famÃ­lia!</p>
+              <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abençoe você e sua família!</p>
               <button type="button" id="visitor-reg-new-btn">Novo cadastro</button>
             </div>
 
             <form id="visitor-reg-form-inline" class="pub-form">
-              <p class="required-note">* Campo obrigatÃ³rio</p>
+              <p class="required-note">* Campo obrigatório</p>
               <label>
                 Nome completo *
                 <input name="name" required maxlength="100" placeholder="Nome completo" autocomplete="name" />
               </label>
               <label>
-                EndereÃ§o
+                Endereço
                 <input name="address" maxlength="200" placeholder="Rua, bairro, cidade" />
               </label>
               <label>
@@ -181,7 +181,7 @@
           <button class="action-card action-card-report" id="weekly-report-card" type="button">
             <span class="action-icon">&#128203;</span>
             <span class="action-content">
-              <strong>InformaÃ§Ãµes semanais</strong>
+              <strong>Informações semanais</strong>
               <small>Preencha presenca e dados da reuniao semanal.</small>
             </span>
           </button>
@@ -285,12 +285,12 @@
       </div>
     </div>
 
-    <!-- MODAL: InformaÃ§Ãµes semanais -->
+    <!-- MODAL: Informações semanais -->
     <div class="modal-backdrop" id="report-modal" hidden>
       <div class="modal-card modal-card-xl" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
         <div class="modal-head">
           <div>
-            <h2 id="report-modal-title">InformaÃ§Ãµes semanais da celula</h2>
+            <h2 id="report-modal-title">Informações semanais da celula</h2>
             <p class="panel-sub">Preencha presenca e dados da reuniao semanal.</p>
             <p id="report-mode-note" class="report-mode-note" hidden></p>
           </div>
@@ -377,7 +377,7 @@
               <div id="visitor-inline-form" hidden>
                 <div class="visitor-form-fields">
                   <input id="visitor-name-input" placeholder="Nome *" />
-                  <input id="visitor-address-input" placeholder="EndereÃ§o (opcional)" />
+                  <input id="visitor-address-input" placeholder="Endereço (opcional)" />
                   <input id="visitor-phone-input" placeholder="Telefone (opcional)" />
                 </div>
                 <div class="visitor-form-actions">
@@ -389,7 +389,7 @@
 
             <div class="images-section" id="report-images-section">
               <div class="images-section-head">
-                <span class="images-section-label">Fotos da cÃ©lula</span>
+                <span class="images-section-label">Fotos da célula</span>
                 <span id="images-count-label" class="images-count"></span>
                 <button type="button" id="add-image-btn" class="ghost-btn small-btn">+ Adicionar foto</button>
               </div>
@@ -562,5 +562,6 @@
     </script>
   </body>
 </html>
+
 
 

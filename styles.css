@@ -72,7 +72,7 @@ body.modal-open {
   animation: enter 620ms ease both;
 }
 
-/* Home screen â€“ dois cards de navegaÃ§Ã£o */
+/* Home screen – dois cards de navegação */
 .home-page .hero h1 {
   font-size: clamp(1.3rem, 3.5vw, 1.9rem);
 }
@@ -1514,5 +1514,6 @@ button:hover {
     min-height: 400px;
   }
 }
+
 
 
