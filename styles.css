@@ -1452,17 +1452,6 @@ button:hover {
   background: #fff;
 }
 
-.install-page h1 {
-  margin: 0.2rem 0 0.55rem;
-  font-size: clamp(1.5rem, 4.2vw, 2.1rem);
-}
-
-.install-subtitle {
-  margin: 0 auto 1rem;
-  max-width: 52ch;
-  color: var(--ink-soft);
-}
-
 .install-btn {
   border: 0;
   border-radius: 0.65rem;
@@ -1471,6 +1460,7 @@ button:hover {
   font: inherit;
   font-weight: 700;
   padding: 0.78rem 1.25rem;
+  margin-top: 0.5rem;
   cursor: pointer;
   box-shadow: 0 8px 22px rgba(31, 82, 58, 0.28);
 }
@@ -1481,50 +1471,6 @@ button:hover {
 
 .install-btn-pulse {
   animation: install-pulse 1.25s ease-in-out infinite;
-}
-
-.install-status {
-  margin: 0.95rem 0 0.38rem;
-  font-weight: 600;
-}
-
-.install-status[data-tone="ok"] {
-  color: #1f6a44;
-}
-
-.install-status[data-tone="warn"] {
-  color: #8e2f17;
-}
-
-.install-hint {
-  margin: 0 auto 1rem;
-  max-width: 55ch;
-  color: var(--ink-soft);
-  font-size: 0.93rem;
-}
-
-.install-open-link {
-  display: inline-flex;
-  justify-content: center;
-  min-width: 190px;
-  margin-top: 0.4rem;
-}
-
-.install-share {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.35rem;
-  color: var(--ink-soft);
-  font-size: 0.86rem;
-}
-
-.install-share code {
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background: #f2efe4;
-  border: 1px solid #ded8c7;
-  padding: 0.42rem 0.55rem;
-  border-radius: 0.55rem;
-  word-break: break-word;
 }
 
 @keyframes install-pulse {
