@@ -491,6 +491,10 @@ h1 {
   background: linear-gradient(160deg, #fffaf8, #f3e8f1);
 }
 
+.action-card-studies {
+  background: linear-gradient(160deg, #fffaf8, #f4e5e6);
+}
+
 /* Visitantes modal */
 .visitantes-toolbar {
   display: flex;
@@ -1192,6 +1196,87 @@ button:hover {
   align-items: start;
 }
 
+.studies-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.studies-form-wrap,
+.studies-list-wrap {
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: #fdf5f2;
+  padding: 0.85rem;
+}
+
+.studies-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.studies-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.studies-list-head h3 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.studies-list-head p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+.studies-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 66vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.study-item {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: #fff;
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.study-item h4 {
+  margin: 0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.study-item-desc {
+  margin: 0.15rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.study-item-meta {
+  margin: 0.3rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.study-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .access-form {
   border: 1px solid var(--line);
   border-radius: 0.9rem;
@@ -1499,6 +1584,10 @@ button:hover {
   }
 
   .access-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .studies-grid {
     grid-template-columns: 1fr;
   }
 

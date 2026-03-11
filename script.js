@@ -50,6 +50,7 @@ const viewCellsCard = document.getElementById("view-cells-card");
 const weeklyReportCard = document.getElementById("weekly-report-card");
 const manageAccessCard = document.getElementById("manage-access-card");
 const viewVisitantesCard = document.getElementById("view-visitantes-card");
+const viewStudiesCard = document.getElementById("view-studies-card");
 
 const cellModal = document.getElementById("cell-modal");
 const memberModal = document.getElementById("member-modal");
@@ -57,6 +58,7 @@ const cellsModal = document.getElementById("cells-modal");
 const reportModal = document.getElementById("report-modal");
 const accessModal = document.getElementById("access-modal");
 const visitantesModal = document.getElementById("visitantes-modal");
+const studiesModal = document.getElementById("studies-modal");
 
 const closeCellModalButton = document.getElementById("close-cell-modal");
 const closeMemberModalButton = document.getElementById("close-member-modal");
@@ -64,6 +66,7 @@ const closeCellsModalButton = document.getElementById("close-cells-modal");
 const closeReportModalButton = document.getElementById("close-report-modal");
 const closeAccessModalButton = document.getElementById("close-access-modal");
 const closeVisitantesModalButton = document.getElementById("close-visitantes-modal");
+const closeStudiesModalButton = document.getElementById("close-studies-modal");
 
 const accessForm = document.getElementById("access-form");
 const accessUsersList = document.getElementById("access-users-list");
@@ -72,6 +75,13 @@ const saveAccessButton = document.getElementById("save-access-button");
 const cancelAccessEditButton = document.getElementById("cancel-access-edit");
 const accessRoleSelect = accessForm?.elements?.namedItem("role");
 const accessAssignedCellInput = accessForm?.elements?.namedItem("assignedCellName");
+const studyForm = document.getElementById("study-form");
+const studiesList = document.getElementById("studies-list");
+const studiesCount = document.getElementById("studies-count");
+const studyFeedback = document.getElementById("study-feedback");
+const saveStudyButton = document.getElementById("save-study-button");
+const cancelStudyEditButton = document.getElementById("cancel-study-edit");
+const studiesFormWrap = document.getElementById("studies-form-wrap");
 
 const accessBadge = document.getElementById("access-badge");
 const accessNote = document.getElementById("access-note");
@@ -99,6 +109,8 @@ const ROLE_PERMISSIONS = {
   viewCells: ["coordinator", "pastor", "admin"],
   deleteCell: ["admin"],
   manageAccess: ["pastor", "admin"],
+  viewStudies: ["leader", "coordinator", "pastor", "admin"],
+  manageStudies: ["pastor", "admin"],
 };
 
 const ICONS = {
@@ -352,12 +364,22 @@ function bindAppEvents() {
     openModal(accessModal);
   });
 
+  viewStudiesCard?.addEventListener("click", () => {
+    if (!hasPermission("viewStudies")) {
+      return;
+    }
+    resetStudyForm();
+    renderStudies();
+    openModal(studiesModal);
+  });
+
   closeCellModalButton?.addEventListener("click", () => closeModal(cellModal));
   closeMemberModalButton?.addEventListener("click", () => closeModal(memberModal));
   closeCellsModalButton?.addEventListener("click", () => closeModal(cellsModal));
   closeReportModalButton?.addEventListener("click", () => closeModal(reportModal));
   closeAccessModalButton?.addEventListener("click", () => closeModal(accessModal));
   closeVisitantesModalButton?.addEventListener("click", () => closeModal(visitantesModal));
+  closeStudiesModalButton?.addEventListener("click", () => closeModal(studiesModal));
 
   viewVisitantesCard?.addEventListener("click", () => {
     renderVisitantesList();
@@ -384,7 +406,7 @@ function bindAppEvents() {
     renderVisitantesList();
   });
 
-  [cellModal, memberModal, cellsModal, reportModal, accessModal, visitantesModal].forEach((modal) => {
+  [cellModal, memberModal, cellsModal, reportModal, accessModal, visitantesModal, studiesModal].forEach((modal) => {
     modal?.addEventListener("click", (event) => {
       if (event.target === modal) {
         closeModal(modal);
@@ -576,6 +598,137 @@ function bindAppEvents() {
       resetAccessForm();
       setAccessFeedback("Acesso excluido.");
       renderAccessUsers();
+    }
+  });
+
+  cancelStudyEditButton?.addEventListener("click", () => {
+    resetStudyForm();
+    setStudyFeedback("");
+  });
+
+  studyForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!hasPermission("manageStudies")) {
+      return;
+    }
+
+    const formData = new FormData(studyForm);
+    const studyId = String(formData.get("studyId") || "").trim();
+    const title = String(formData.get("title") || "").trim();
+    const description = String(formData.get("description") || "").trim();
+    const pdfUrl = String(formData.get("pdfUrl") || "").trim();
+    const pdfFile = formData.get("pdfFile");
+
+    if (!title) {
+      setStudyFeedback("Informe o título do estudo.");
+      return;
+    }
+
+    const editingStudy = studyId ? state.studies.find((entry) => entry.id === studyId) : null;
+    const hasExistingPdf = Boolean(editingStudy?.pdfUrl || editingStudy?.pdfDataUrl);
+    const hasNewFile = pdfFile instanceof File && pdfFile.size > 0;
+
+    if (!hasNewFile && !pdfUrl && !hasExistingPdf) {
+      setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
+      return;
+    }
+
+    let pdfDataUrl = editingStudy?.pdfDataUrl || "";
+    if (hasNewFile) {
+      if (pdfFile.type && pdfFile.type !== "application/pdf") {
+        setStudyFeedback("Envie apenas arquivo PDF.");
+        return;
+      }
+
+      if (pdfFile.size > 1_800_000) {
+        setStudyFeedback("PDF muito grande para salvar localmente. Use até 1,8 MB.");
+        return;
+      }
+
+      try {
+        pdfDataUrl = await readFileAsDataUrl(pdfFile);
+      } catch {
+        setStudyFeedback("Erro ao ler o arquivo PDF.");
+        return;
+      }
+    }
+
+    if (studyId && editingStudy) {
+      editingStudy.title = title;
+      editingStudy.description = description;
+      editingStudy.pdfUrl = pdfUrl;
+      editingStudy.pdfDataUrl = pdfDataUrl;
+      editingStudy.updatedAt = new Date().toISOString();
+      editingStudy.updatedBy = session?.name || session?.username || "Sistema";
+      setStudyFeedback("Estudo atualizado.");
+    } else {
+      state.studies.unshift({
+        id: createId(),
+        title,
+        description,
+        pdfUrl,
+        pdfDataUrl,
+        createdAt: new Date().toISOString(),
+        createdBy: session?.name || session?.username || "Sistema",
+        updatedAt: null,
+        updatedBy: null,
+      });
+      setStudyFeedback("Estudo publicado.");
+    }
+
+    persistAndRender();
+    renderStudies();
+    resetStudyForm();
+  });
+
+  studiesList?.addEventListener("click", (event) => {
+    const clickTarget = event.target;
+    if (!(clickTarget instanceof Element)) {
+      return;
+    }
+
+    const actionButton = clickTarget.closest("button[data-study-action]");
+    if (!actionButton) {
+      return;
+    }
+
+    const studyId = String(actionButton.dataset.studyId || "");
+    const action = String(actionButton.dataset.studyAction || "");
+    const study = state.studies.find((entry) => entry.id === studyId);
+    if (!study) {
+      return;
+    }
+
+    if (action === "open") {
+      openStudyPdf(study);
+      return;
+    }
+
+    if (!hasPermission("manageStudies")) {
+      return;
+    }
+
+    if (action === "edit") {
+      fillStudyFormForEdit(study);
+      setStudyFeedback("");
+      return;
+    }
+
+    if (action === "delete") {
+      const shouldDelete =
+        typeof window !== "undefined" && typeof window.confirm === "function"
+          ? window.confirm(`Deseja excluir o estudo "${study.title}"?`)
+          : true;
+      if (!shouldDelete) {
+        return;
+      }
+
+      state.studies = state.studies.filter((entry) => entry.id !== study.id);
+      persistAndRender();
+      renderStudies();
+      resetStudyForm();
+      setStudyFeedback("Estudo excluído.");
     }
   });
 
@@ -1081,6 +1234,13 @@ function setAccessFeedback(message) {
   accessFeedback.textContent = message || "";
 }
 
+function setStudyFeedback(message) {
+  if (!studyFeedback) {
+    return;
+  }
+  studyFeedback.textContent = message || "";
+}
+
 function sanitizeManagedRole(value) {
   const role = String(value || "leader").toLowerCase().trim();
   return MANAGEABLE_ROLES.includes(role) ? role : "leader";
@@ -1194,6 +1354,148 @@ function countManagerUsers() {
   return users.filter((user) => roleHasPermission(user.role, "manageAccess")).length;
 }
 
+function resetStudyForm() {
+  if (!studyForm) {
+    return;
+  }
+
+  studyForm.reset();
+  const studyIdField = studyForm.elements.namedItem("studyId");
+  if (studyIdField && "value" in studyIdField) {
+    studyIdField.value = "";
+  }
+
+  if (saveStudyButton) {
+    saveStudyButton.textContent = "Publicar estudo";
+  }
+  if (cancelStudyEditButton) {
+    cancelStudyEditButton.hidden = true;
+  }
+  setStudyFeedback("");
+}
+
+function fillStudyFormForEdit(study) {
+  if (!studyForm || !study) {
+    return;
+  }
+
+  const studyIdField = studyForm.elements.namedItem("studyId");
+  const titleField = studyForm.elements.namedItem("title");
+  const descriptionField = studyForm.elements.namedItem("description");
+  const pdfUrlField = studyForm.elements.namedItem("pdfUrl");
+  const pdfFileField = studyForm.elements.namedItem("pdfFile");
+
+  if (studyIdField && "value" in studyIdField) {
+    studyIdField.value = study.id;
+  }
+  if (titleField && "value" in titleField) {
+    titleField.value = study.title || "";
+  }
+  if (descriptionField && "value" in descriptionField) {
+    descriptionField.value = study.description || "";
+  }
+  if (pdfUrlField && "value" in pdfUrlField) {
+    pdfUrlField.value = study.pdfUrl || "";
+  }
+  if (pdfFileField && "value" in pdfFileField) {
+    pdfFileField.value = "";
+  }
+
+  if (saveStudyButton) {
+    saveStudyButton.textContent = "Atualizar estudo";
+  }
+  if (cancelStudyEditButton) {
+    cancelStudyEditButton.hidden = false;
+  }
+}
+
+function renderStudies() {
+  if (!studiesList) {
+    return;
+  }
+
+  const canManage = hasPermission("manageStudies");
+  if (studiesFormWrap) {
+    studiesFormWrap.hidden = !canManage;
+  }
+
+  const studies = Array.isArray(state.studies) ? [...state.studies] : [];
+  studies.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  if (studiesCount) {
+    studiesCount.textContent = `${studies.length} estudo${studies.length === 1 ? "" : "s"}`;
+  }
+
+  if (!studies.length) {
+    studiesList.innerHTML = '<p class="empty">Nenhum estudo publicado ainda.</p>';
+    return;
+  }
+
+  studiesList.innerHTML = studies
+    .map((study) => {
+      const canOpen = Boolean(study.pdfUrl || study.pdfDataUrl);
+      const description = study.description
+        ? `<p class="study-item-desc">${escapeHtml(study.description)}</p>`
+        : "";
+      const createdBy = study.createdBy ? ` · por ${escapeHtml(study.createdBy)}` : "";
+      const when = formatDateForReport(String(study.createdAt || "").slice(0, 10));
+
+      return `
+        <article class="study-item">
+          <div class="study-item-main">
+            <h4>${escapeHtml(study.title)}</h4>
+            ${description}
+            <p class="study-item-meta">Publicado em ${escapeHtml(when)}${createdBy}</p>
+          </div>
+          <div class="study-item-actions">
+            <button
+              type="button"
+              class="ghost-btn tiny-btn"
+              data-study-action="open"
+              data-study-id="${escapeHtml(study.id)}"
+              ${canOpen ? "" : "disabled"}
+            >Abrir PDF</button>
+            ${
+              canManage
+                ? `<button type="button" class="ghost-btn tiny-btn" data-study-action="edit" data-study-id="${escapeHtml(study.id)}">Editar</button>
+                   <button type="button" class="ghost-btn tiny-btn danger-btn" data-study-action="delete" data-study-id="${escapeHtml(study.id)}">Excluir</button>`
+                : ""
+            }
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function openStudyPdf(study) {
+  const target = String(study?.pdfUrl || "").trim() || String(study?.pdfDataUrl || "").trim();
+  if (!target) {
+    setStudyFeedback("Este estudo nao possui PDF disponivel.");
+    return;
+  }
+
+  const opened = window.open(target, "_blank", "noopener,noreferrer");
+  if (opened) {
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = target;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.click();
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function ensureCellForLeaderUser(user) {
   if (!user || user.role !== "leader") {
     return;
@@ -1248,6 +1550,7 @@ function render() {
   renderReportHistory();
   applyReportMode();
   renderAccessUsers();
+  renderStudies();
   autoOpenLeaderReportModal();
 }
 
@@ -1288,6 +1591,9 @@ function renderAccessControl() {
     if (viewVisitantesCard) {
       viewVisitantesCard.hidden = true;
     }
+    if (viewStudiesCard) {
+      viewStudiesCard.hidden = !hasPermission("viewStudies");
+    }
     if (weeklyReportCard) {
       weeklyReportCard.hidden = false;
     }
@@ -1312,6 +1618,10 @@ function renderAccessControl() {
 
   if (manageAccessCard) {
     manageAccessCard.hidden = !hasPermission("manageAccess");
+  }
+
+  if (viewStudiesCard) {
+    viewStudiesCard.hidden = !hasPermission("viewStudies");
   }
 
   // Visitantes card: visible for coordinator, pastor, admin
@@ -2212,7 +2522,7 @@ function closeModal(modal) {
     return;
   }
   modal.hidden = true;
-  const hasAnyOpenModal = [cellModal, memberModal, cellsModal, reportModal, accessModal].some(
+  const hasAnyOpenModal = [cellModal, memberModal, cellsModal, reportModal, accessModal, visitantesModal, studiesModal].some(
     (item) => item && !item.hidden
   );
   if (!hasAnyOpenModal) {
@@ -2221,7 +2531,7 @@ function closeModal(modal) {
 }
 
 function closeAllModals() {
-  [cellModal, memberModal, cellsModal, reportModal, accessModal].forEach((modal) => {
+  [cellModal, memberModal, cellsModal, reportModal, accessModal, visitantesModal, studiesModal].forEach((modal) => {
     if (modal) {
       modal.hidden = true;
     }
@@ -2372,6 +2682,7 @@ function loadState() {
   const fallback = {
     cells: [],
     reports: [],
+    studies: [],
     lastReportId: null,
   };
 
@@ -2392,11 +2703,15 @@ function loadState() {
     const reports = Array.isArray(parsed.reports)
       ? parsed.reports.map((report) => normalizeReport(report)).filter(Boolean)
       : [];
+    const studies = Array.isArray(parsed.studies)
+      ? parsed.studies.map((study) => normalizeStudy(study)).filter(Boolean)
+      : [];
     const lastReportId = typeof parsed.lastReportId === "string" ? parsed.lastReportId : null;
 
     return {
       cells,
       reports,
+      studies,
       lastReportId,
     };
   } catch {
@@ -2473,6 +2788,36 @@ function normalizeReport(report) {
     images: Array.isArray(report.images) ? report.images.filter((s) => typeof s === "string" && s.startsWith("data:")) : [],
     createdAt: report.createdAt || new Date().toISOString(),
     updatedAt: report.updatedAt || null,
+  };
+}
+
+function normalizeStudy(study) {
+  if (!study || typeof study !== "object") {
+    return null;
+  }
+
+  const title = String(study.title || "").trim();
+  const description = String(study.description || "").trim();
+  const pdfUrl = String(study.pdfUrl || "").trim();
+  const pdfDataUrl =
+    typeof study.pdfDataUrl === "string" && study.pdfDataUrl.startsWith("data:application/pdf")
+      ? study.pdfDataUrl
+      : "";
+
+  if (!title || (!pdfUrl && !pdfDataUrl)) {
+    return null;
+  }
+
+  return {
+    id: String(study.id || createId()),
+    title,
+    description,
+    pdfUrl,
+    pdfDataUrl,
+    createdAt: study.createdAt || new Date().toISOString(),
+    createdBy: String(study.createdBy || "").trim(),
+    updatedAt: study.updatedAt || null,
+    updatedBy: study.updatedBy || null,
   };
 }
 
