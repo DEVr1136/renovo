@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "renovo-static-v4";
+﻿const CACHE_NAME = "renovo-static-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -72,3 +72,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+

@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260311c" />
+    <link rel="stylesheet" href="styles.css?v=20260311d" />
   </head>
   <body>
     <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
@@ -586,12 +586,12 @@
       </div>
     </div>
 
-    <script src="script.js?v=20260311c"></script>
+    <script src="script.js?v=20260311d"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-11-c");
+            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-11-d");
             await registration.update();
 
             if (registration.waiting) {
