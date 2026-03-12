@@ -1191,12 +1191,14 @@ async function bootstrapApp() {
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } else {
-      // Firebase vazio ou offline — usa localStorage local
+      // Firebase vazio — carrega localStorage e faz upload imediato para o Firestore
       const cached = loadState();
       state.cells = cached.cells;
       state.reports = cached.reports;
       state.studies = cached.studies;
       state.lastReportId = cached.lastReportId;
+      // Migração: sobe dados locais para o Firestore
+      if (window.fsSaveState) window.fsSaveState(state);
     }
 
     // Usuários
@@ -1205,14 +1207,22 @@ async function bootstrapApp() {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     } else {
       users = loadUsers();
+      // Migração: sobe usuários para o Firestore
+      if (window.fsSaveUsers) window.fsSaveUsers(users);
     }
 
     // Visitantes da igreja
     if (Array.isArray(fsData.visitantes)) {
       localStorage.setItem(VISITANTES_PUB_KEY, JSON.stringify(fsData.visitantes));
+    } else {
+      // Migração: sobe visitantes para o Firestore
+      const localVisitantes = loadVisitantesPub();
+      if (localVisitantes.length > 0 && window.fsSaveVisitantes) {
+        window.fsSaveVisitantes(localVisitantes);
+      }
     }
   } catch (_) {
-    // Fallback total para localStorage
+    // Fallback total para localStorage (offline)
     const cached = loadState();
     state.cells = cached.cells;
     state.reports = cached.reports;
