@@ -3364,6 +3364,7 @@ function renderReportImages(images) {
   gallery.innerHTML = list.map((src, i) => `
     <div class="image-thumb-wrap">
       <img class="image-thumb" src="${src}" alt="Foto ${i + 1}" />
+      <a class="image-download-btn" href="${src}" download="foto-celula-${i + 1}.jpg" title="Baixar foto" aria-label="Baixar foto ${i + 1}">⬇</a>
     </div>
   `).join("");
 }

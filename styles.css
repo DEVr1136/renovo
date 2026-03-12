@@ -1110,6 +1110,28 @@ button:hover {
   height: 88px;
 }
 
+.image-download-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.image-thumb-wrap:hover .image-download-btn {
+  opacity: 1;
+}
+
 /* lightbox overlay */
 .img-lightbox {
   position: fixed;
