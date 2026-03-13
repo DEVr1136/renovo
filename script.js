@@ -3161,7 +3161,7 @@ function seedInitialDataIfEmpty() {
   if (!state.cells.some((c) => normalizeName(c.name) === normalizeName("Visão de Águia"))) {
     const aguiaMembers = [
       "Chirlene", "Kelma", "Marta", "Denise", "Viviane", "Mery",
-      "Geisy", "Luiz", "Osmar", "Ezequiel", "Ney", "Mae da Kelma",
+      "Geisy", "Luiz", "Osmar", "Ezequiel", "Ney",
     ];
     const aguiaCell = {
       id: createId(), name: "Visão de Águia", neighborhood: "Nao informado",
@@ -3169,7 +3169,7 @@ function seedInitialDataIfEmpty() {
       members: aguiaMembers.map(mkMember), createdAt: now,
     };
     state.cells.push(aguiaCell);
-    const aguiaPresent = ["Chirlene", "Marta", "Kelma", "Geisy", "Ney", "Osmar", "Mae da Kelma"];
+    const aguiaPresent = ["Chirlene", "Marta", "Kelma", "Geisy", "Ney", "Osmar"];
     state.reports.push({
       id: createId(), cellId: aguiaCell.id, date: "2026-01-27",
       leaders: "Chirlene", coLeaders: "Marta e Kelma", host: "Chirlene",
