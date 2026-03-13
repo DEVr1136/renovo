@@ -3082,6 +3082,45 @@ function seedInitialDataIfEmpty() {
     }
   }
 
+  // ── Célula Vinho ──────────────────────────────────────────────────────────
+  if (!state.cells.some((c) => normalizeName(c.name) === "vinho")) {
+    const vinhoMembers = [
+      "Jonattham", "Marilene", "Mikaelly", "Marcos", "Sabrina", "Gabriel",
+      "Marilda", "Estefanny", "Madalena", "Silvia", "Adriana", "Francisco", "Alzira", "Kessio",
+    ];
+    const vinhoCell = {
+      id: createId(), name: "Vinho", neighborhood: "Nao informado",
+      meetingDay: "Nao definido", meetingTime: "20:00", leader: "Jonattham e Marilene",
+      members: vinhoMembers.map(mkMember), createdAt: now,
+    };
+    state.cells.push(vinhoCell);
+    const vinhoPresent = ["Marilene", "Mikaelly", "Sabrina", "Marcos", "Alzira", "Adriana", "Kessio"];
+    state.reports.push({
+      id: createId(), cellId: vinhoCell.id, date: "2026-01-22",
+      leaders: "Jonattham e Marilene", coLeaders: "", host: "",
+      presentMemberIds: vinhoCell.members.filter((m) => vinhoPresent.some((n) => normalizeName(n) === normalizeName(m.name))).map((m) => m.id),
+      visitorsCount: 4,
+      visitorNames: ["Barbara", "Letícia", "Gabriel", "Jennifer Vieira"],
+      visitorDetails: [
+        { name: "Barbara",        how: "", address: "", phone: "" },
+        { name: "Letícia",        how: "", address: "", phone: "" },
+        { name: "Gabriel",        how: "", address: "", phone: "" },
+        { name: "Jennifer Vieira",how: "", address: "", phone: "" },
+      ],
+      createdAt: new Date("2026-01-22T20:00:00").toISOString(),
+    });
+    saveState(state);
+  }
+  const vinhoLeaders = [
+    { name: "Jonattham", username: "jonattham.vinho" },
+    { name: "Marilene",  username: "marilene.vinho"  },
+  ];
+  for (const def of vinhoLeaders) {
+    if (!users.some((u) => normalizeUsername(u.username) === def.username)) {
+      users.push({ id: createId(), name: def.name, username: def.username, password: "123456", role: "leader", assignedCellName: "Vinho", createdAt: now, updatedAt: null });
+    }
+  }
+
   // ── Célula Alex e Ariane ─────────────────────────────────────────────────
   if (!state.cells.some((c) => normalizeName(c.name) === normalizeName("Alex e Ariane"))) {
     const arianeMembers = ["Ariane", "Alex", "Karla", "Lara", "Vera", "Fiorella", "Luzimar", "Murilo", "Karlen", "Missikely", "Dáfynie", "Mayara", "Alessandro"];
