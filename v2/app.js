@@ -691,8 +691,8 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Acesso",
       title: "Gerenciar acessos",
-      description: "Usar a tela atual de acessos enquanto preparamos o modulo definitivo da v2.",
-      url: base + "index.html",
+      description: "Abrir o modulo administrativo da v2 para criar, editar e remover usuarios.",
+      url: "./access.html?v=1",
     });
   }
 

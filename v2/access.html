@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acessos - Renovo v2</title>
+    <meta name="theme-color" content="#8b0d12" />
+    <link rel="icon" type="image/png" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1" />
+    <link rel="stylesheet" href="./styles.css?v=1" />
+  </head>
+  <body>
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-card">
+        <p class="eyebrow">Renovo v2</p>
+        <h1>Carregando acessos</h1>
+        <p class="loading-copy">Preparando usuarios, permissoes e sincronizacao segura.</p>
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <p id="loading-status" class="loading-status">Iniciando...</p>
+      </div>
+    </div>
+
+    <div class="page-shell">
+      <div class="orb orb-a" aria-hidden="true"></div>
+      <div class="orb orb-b" aria-hidden="true"></div>
+
+      <main id="access-app" class="app-shell" hidden>
+        <section class="hero-card">
+          <p class="eyebrow">Renovo v2</p>
+          <div class="hero-row">
+            <div>
+              <h1>Gerenciar acessos</h1>
+              <p id="access-hero-copy" class="hero-copy">
+                Controle usuarios, cargos e celulas vinculadas na nova base.
+              </p>
+            </div>
+
+            <div class="hero-actions">
+              <a class="ghost-btn" href="./index.html?v=1">Voltar para a home</a>
+            </div>
+          </div>
+        </section>
+
+        <section id="access-banner" class="alert-banner" hidden></section>
+
+        <section class="panel-grid report-layout">
+          <article class="panel-card">
+            <div class="panel-head">
+              <p class="eyebrow">Formulario</p>
+              <h2>Novo acesso</h2>
+            </div>
+
+            <form id="access-form" class="auth-form report-form-v2">
+              <input type="hidden" name="userId" />
+
+              <label>
+                Nome completo
+                <input name="name" maxlength="80" required />
+              </label>
+
+              <label>
+                Usuario
+                <input name="username" maxlength="40" required />
+              </label>
+
+              <label>
+                Senha
+                <input name="password" type="password" maxlength="80" />
+              </label>
+
+              <label>
+                Confirmar senha
+                <input name="confirmPassword" type="password" maxlength="80" />
+              </label>
+
+              <label>
+                Cargo
+                <select name="role" id="access-role">
+                  <option value="leader">Lider</option>
+                  <option value="coordinator">Coordenador</option>
+                  <option value="pastor">Pastor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+
+              <label>
+                Celula vinculada
+                <input name="assignedCellName" id="assigned-cell-name" maxlength="80" placeholder="Obrigatoria para lider" />
+              </label>
+
+              <div class="report-inline-actions">
+                <button id="save-access-button" class="primary-btn auth-submit" type="submit">Salvar acesso</button>
+                <button id="cancel-access-button" class="ghost-btn" type="button" hidden>Cancelar edicao</button>
+              </div>
+
+              <p id="access-feedback" class="auth-feedback"></p>
+            </form>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <p class="eyebrow">Usuarios</p>
+              <h2>Lista de acessos</h2>
+            </div>
+
+            <div id="access-summary" class="summary-grid report-summary-grid">
+              <article class="summary-card">
+                <span class="mini-label">Total</span>
+                <strong id="users-total">0</strong>
+              </article>
+              <article class="summary-card">
+                <span class="mini-label">Admins/Pastores</span>
+                <strong id="users-managers">0</strong>
+              </article>
+              <article class="summary-card">
+                <span class="mini-label">Lideres</span>
+                <strong id="users-leaders">0</strong>
+              </article>
+            </div>
+
+            <div id="access-users-list" class="access-list-v2"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="./firebase.js?v=1"></script>
+    <script src="./access.js?v=1"></script>
+  </body>
+</html>

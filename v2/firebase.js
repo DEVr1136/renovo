@@ -133,11 +133,28 @@
     }
   }
 
+  async function saveUsers(nextUsers) {
+    const base = await init();
+    if (!base.db) {
+      return buildResult("warn", "Firestore indisponivel para salvar usuarios.");
+    }
+
+    try {
+      await base.db.collection("renovo").doc("users").set({ list: Array.isArray(nextUsers) ? nextUsers : [] });
+      return buildResult("ok", "Usuarios salvos no Firestore.");
+    } catch (error) {
+      return buildResult("warn", "Falha ao salvar usuarios remotos. Os dados seguem ao menos no local.", {
+        error,
+      });
+    }
+  }
+
   window.RenovoV2Firebase = {
     init,
     loadUsers,
     loadStateSummary,
     loadFullState,
     saveState,
+    saveUsers,
   };
 })();
