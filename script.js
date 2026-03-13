@@ -2986,6 +2986,16 @@ function seedInitialDataIfEmpty() {
       visitorDetails: [],
       createdAt: new Date("2026-01-14T20:00:00").toISOString(),
     });
+
+    // Relatório 20/01/2026
+    const brancaPresent2 = ["Kelly", "Vitória", "Cecília", "Joana", "Cel", "Conceição", "Maria Lopes", "Maria Alice", "Vânia"];
+    state.reports.push({
+      id: createId(), cellId: brancaCell.id, date: "2026-01-20",
+      leaders: "Joana", coLeaders: "Josué e Vânia", host: "Joana",
+      presentMemberIds: brancaCell.members.filter((m) => brancaPresent2.some((n) => normalizeName(n) === normalizeName(m.name))).map((m) => m.id),
+      visitorsCount: 1, visitorNames: [], visitorDetails: [],
+      createdAt: new Date("2026-01-20T20:00:00").toISOString(),
+    });
     saveState(state);
   }
 
