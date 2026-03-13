@@ -1178,7 +1178,10 @@ async function bootstrapApp() {
   }
 
   try {
-    const fsData = await window.fsLoadAll();
+    const fsData = await Promise.race([
+      window.fsLoadAll(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
 
     // Estado (células, relatórios, estudos)
     if (fsData.state) {
