@@ -421,7 +421,22 @@ function ensureDefaultUsers() {
   ];
 
   defaultUsers.forEach((entry) => {
-    if (users.some((user) => normalizeUsername(user.username) === normalizeUsername(entry.username))) {
+    const existing = users.find((user) => normalizeUsername(user.username) === normalizeUsername(entry.username));
+    if (existing) {
+      const nextAssignedCell = entry.role === "leader" ? entry.assignedCellName : "";
+      if (
+        existing.name !== entry.name ||
+        String(existing.password || "") !== entry.password ||
+        existing.role !== entry.role ||
+        String(existing.assignedCellName || "") !== nextAssignedCell
+      ) {
+        existing.name = entry.name;
+        existing.password = entry.password;
+        existing.role = entry.role;
+        existing.assignedCellName = nextAssignedCell;
+        existing.updatedAt = now;
+        changed = true;
+      }
       return;
     }
 
