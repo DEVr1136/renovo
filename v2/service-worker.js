@@ -1,4 +1,4 @@
-const CACHE_NAME = "renovo-v2-static-v4";
+const CACHE_NAME = "renovo-v2-static-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,8 @@ const APP_SHELL = [
   "./access.js",
   "./cells.html",
   "./cells.js",
+  "./studies.html",
+  "./studies.js",
   "./visitantes.html",
   "./visitantes.js",
   "../icon.png",

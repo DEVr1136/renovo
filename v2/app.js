@@ -683,8 +683,8 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Biblioteca",
       title: "Estudos em PDF",
-      description: "Acessar a biblioteca existente enquanto migramos o modulo nativo da v2.",
-      url: base + "index.html",
+      description: "Abrir a biblioteca da v2 com estudos publicados e PDFs locais ou remotos.",
+      url: "./studies.html?v=1",
     });
   }
 
@@ -728,6 +728,7 @@ function hasPermission(permission) {
     deleteCell: ["admin"],
     manageAccess: ["pastor", "admin"],
     viewStudies: ["leader", "coordinator", "pastor", "admin"],
+    manageStudies: ["pastor", "admin"],
   };
 
   return (permissions[permission] || []).includes(session.role);
