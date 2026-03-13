@@ -1167,6 +1167,17 @@ function bindAppEvents() {
 
 async function bootstrapApp() {
   showLoadingScreen();
+
+  // One-time reset: apaga células e relatórios demo v1
+  if (!localStorage.getItem("renovo_reset_v1")) {
+    state.cells = [];
+    state.reports = [];
+    state.lastReportId = null;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (window.fsSaveState) window.fsSaveState(state);
+    localStorage.setItem("renovo_reset_v1", "done");
+  }
+
   try {
     const fsData = await window.fsLoadAll();
 
@@ -2710,17 +2721,6 @@ function ensureDefaultUsers() {
     });
   }
 
-  if (!users.some((entry) => normalizeUsername(entry.username) === "lider.cinza")) {
-    users.push({
-      id: "leader-cinza",
-      name: "Lider da Celula Cinza",
-      username: "lider.cinza",
-      password: "123456",
-      role: "leader",
-      assignedCellName: "Cinza",
-      createdAt: new Date().toISOString(),
-    });
-  }
 
   if (!users.some((entry) => normalizeUsername(entry.username) === "pastor.judson")) {
     users.push({
@@ -2947,239 +2947,7 @@ function ensureLeaderCellForSession() {
 }
 
 function seedInitialDataIfEmpty() {
-  const mkMember = (name) => ({ id: createId(), name, phone: "" });
-
-  const cellDefs = [
-    {
-      name: "Preta",
-      meetingDay: "Terca",
-      leader: "Sabrina e Filipe",
-      members: [
-        "Filipe", "Sabrina", "Mikaelly", "Pedro", "Vitor", "Guilherme", "Ana",
-        "Eliel", "Ian Vieira", "Thifanny", "Danilo", "Soraia", "Josiel",
-        "Jonathan", "Mikael", "Deivid", "Rebeca", "Luiz Henrique", "Leo",
-        "Leticia", "Faby", "Andrey", "Dryka", "Sarah",
-      ],
-    },
-    {
-      name: "Vinho",
-      meetingDay: "Quinta",
-      leader: "Jonattham e Marilene",
-      members: [
-        "Jonattham", "Marilene", "Mikaelly", "Marcos", "Sabrina", "Gabriel",
-        "Marilda", "Estefanny", "Madalena", "Silvia", "Adriana", "Francisco", "Alzira",
-      ],
-    },
-    {
-      name: "Cinza",
-      meetingDay: "Quinta",
-      leader: "Jander e Aline",
-      members: [
-        "Jander", "Aline", "Amanda Rayssa", "Amanda", "Daniel", "Luiz",
-        "Manu", "Ray", "Mayara", "Ana", "Rebeca", "Liz", "Mariana",
-      ],
-    },
-    {
-      name: "Logos",
-      meetingDay: "Segunda",
-      leader: "Thiago e Augusto",
-      members: ["Thiago", "Augusto", "Rian", "Gustavo", "Leticia", "Mariana", "Jenny", "Phedro", "Raquel"],
-    },
-    {
-      name: "Alex e Ariane",
-      meetingDay: "Terca",
-      leader: "Alex e Ariane",
-      members: [
-        "Ariane", "Alex", "Karla", "Lara", "Vera", "Fiorella", "Luzimar",
-        "Murilo", "Karlen", "Missikely", "Dafynie", "Mayara", "Alessandro",
-      ],
-    },
-    {
-      name: "Karina e Jhennifer",
-      meetingDay: "Terca",
-      leader: "Karina e Jhennifer",
-      members: [
-        "Karina", "Jhennifer", "Lucas", "Renata", "Antonio", "Nazare",
-        "Rogerio", "Fabiana", "Eva", "Adlaine", "Renan", "Elvis", "Aparecida",
-        "Flavio", "Alice", "Gabriel", "Vitoria", "Iasmin", "Juliana", "Rose",
-      ],
-    },
-    {
-      name: "Visão de Águia",
-      meetingDay: "Segunda",
-      leader: "Chirlene",
-      members: ["Chirlene", "Kelma", "Marta", "Denise", "Viviane", "Mery", "Geisy", "Luiz", "Osmar", "Ezequiel", "Ney"],
-    },
-    {
-      name: "Verde",
-      meetingDay: "Terca",
-      leader: "Evelyn",
-      members: [
-        "Evelyn", "Raiane", "Alice", "Hatos", "Enzo", "Helloany", "Daniel",
-        "Ana Lu", "Gaby", "Sushinie", "Jefferson", "Jonas", "Shelcy", "Bruno", "Kamila", "Danilo",
-      ],
-    },
-    {
-      name: "Ekballo",
-      meetingDay: "Terca",
-      leader: "Vitória e Pedro",
-      members: [
-        "Igor", "Julya Maria", "Maria Eduarda", "Pedro", "Vitoria", "Wallafy",
-        "Yasmin", "Vitor Gabriel", "Manu", "Lindsay", "Ana Clara", "Fernanda",
-      ],
-    },
-    {
-      name: "Peregrinos",
-      meetingDay: "Quinta",
-      leader: "Isabella e Sarah",
-      members: ["Isabella", "Sarah", "Roberto", "Erick", "Isabelle", "Willian", "Elias", "Eloah"],
-    },
-  ];
-
   const now = new Date().toISOString();
-
-  let stateChanged = false;
-  for (const def of cellDefs) {
-    if (!state.cells.some((c) => normalizeName(c.name) === normalizeName(def.name))) {
-      state.cells.push({
-        id: createId(),
-        name: def.name,
-        neighborhood: "Nao informado",
-        meetingDay: def.meetingDay,
-        meetingTime: "20:00",
-        leader: def.leader,
-        members: def.members.map(mkMember),
-        createdAt: now,
-      });
-      stateChanged = true;
-    }
-  }
-
-  const cinzaCellForMembers = state.cells.find((c) => normalizeName(c.name) === "cinza");
-  if (cinzaCellForMembers) {
-    const cinzaRequiredMembers = [
-      "Jander",
-      "Aline",
-      "Amanda Rayssa",
-      "Amanda",
-      "Daniel",
-      "Luiz",
-      "Manu",
-      "Ray",
-      "Mayara",
-      "Ana",
-      "Rebeca",
-      "Liz",
-      "Mariana",
-    ];
-
-    const existingCinzaNames = new Set(cinzaCellForMembers.members.map((member) => normalizeName(member.name)));
-    for (const memberName of cinzaRequiredMembers) {
-      if (!existingCinzaNames.has(normalizeName(memberName))) {
-        cinzaCellForMembers.members.push(mkMember(memberName));
-        stateChanged = true;
-      }
-    }
-  }
-
-  const pretaCell = state.cells.find((c) => normalizeName(c.name) === "preta");
-  if (pretaCell && state.reports.length === 0) {
-    const presentNames = [
-      "Filipe", "Sabrina", "Mikael", "Ian Vieira", "Eliel", "Deivid",
-      "Jonathan", "Leo", "Leticia", "Vitor", "Guilherme", "Dryka", "Soraia", "Thifanny", "Mikaelly", "Ana",
-    ];
-    const presentMemberIds = pretaCell.members
-      .filter((member) => presentNames.some((name) => normalizeName(name) === normalizeName(member.name)))
-      .map((member) => member.id);
-    const initialReport = {
-      id: createId(),
-      cellId: pretaCell.id,
-      date: "2026-02-24",
-      leaders: "Sabrina e Filipe",
-      coLeaders: "Ian Vieira",
-      host: "Salipe",
-      presentMemberIds,
-      visitorsCount: 5,
-      visitorNames: [],
-      createdAt: new Date("2026-02-24T22:00:00").toISOString(),
-    };
-    state.reports.push(initialReport);
-    state.lastReportId = initialReport.id;
-    stateChanged = true;
-  }
-
-  const cinzaCell = state.cells.find((c) => normalizeName(c.name) === "cinza");
-  const cinzaReportDate = "2026-01-23";
-  if (cinzaCell && !state.reports.some((r) => r.cellId === cinzaCell.id && r.date === cinzaReportDate)) {
-    const cinzaPresentNames = [
-      "Aline",
-      "Jander",
-      "Mariana",
-      "Mayara",
-      "Ana",
-      "Luiz",
-      "Manu",
-      "Ray",
-    ];
-
-    const cinzaPresentMemberIds = cinzaCell.members
-      .filter((member) => cinzaPresentNames.some((name) => normalizeName(name) === normalizeName(member.name)))
-      .map((member) => member.id);
-
-    const cinzaReport = {
-      id: createId(),
-      cellId: cinzaCell.id,
-      date: cinzaReportDate,
-      leaders: "Jander e Aline",
-      coLeaders: "",
-      host: "Luiz e Manu",
-      presentMemberIds: cinzaPresentMemberIds,
-      visitorsCount: 0,
-      visitorNames: [],
-      createdAt: new Date("2026-01-23T22:00:00").toISOString(),
-    };
-
-    state.reports.push(cinzaReport);
-    stateChanged = true;
-  }
-
-  if (stateChanged) saveState(state);
-
-  const leaderDefs = [
-    { name: "Sabrina",   username: "sabrina.preta",        assignedCellName: "Preta" },
-    { name: "Filipe",    username: "filipe.preta",          assignedCellName: "Preta" },
-    { name: "Jonattham", username: "jonattham.vinho",       assignedCellName: "Vinho" },
-    { name: "Marilene",  username: "marilene.vinho",        assignedCellName: "Vinho" },
-    { name: "Jander",    username: "jander.cinza",          assignedCellName: "Cinza" },
-    { name: "Aline",     username: "aline.cinza",           assignedCellName: "Cinza" },
-    { name: "Thiago",    username: "thiago.logos",          assignedCellName: "Logos" },
-    { name: "Augusto",   username: "augusto.logos",         assignedCellName: "Logos" },
-    { name: "Alex",      username: "alex.celula",           assignedCellName: "Alex e Ariane" },
-    { name: "Ariane",    username: "ariane.celula",         assignedCellName: "Alex e Ariane" },
-    { name: "Karina",    username: "karina.celula",         assignedCellName: "Karina e Jhennifer" },
-    { name: "Jhennifer", username: "jhennifer.celula",      assignedCellName: "Karina e Jhennifer" },
-    { name: "Chirlene",  username: "chirlene.aguia",        assignedCellName: "Visão de Águia" },
-    { name: "Evelyn",    username: "evelyn.verde",          assignedCellName: "Verde" },
-    { name: "Vitória",   username: "vitoria.ekballo",       assignedCellName: "Ekballo" },
-    { name: "Pedro",     username: "pedro.ekballo",         assignedCellName: "Ekballo" },
-    { name: "Isabella",  username: "isabella.peregrinos",   assignedCellName: "Peregrinos" },
-    { name: "Sarah",     username: "sarah.peregrinos",      assignedCellName: "Peregrinos" },
-  ];
-
-  for (const def of leaderDefs) {
-    if (!users.some((u) => normalizeUsername(u.username) === def.username)) {
-      users.push({
-        id: createId(),
-        name: def.name,
-        username: def.username,
-        password: "123456",
-        role: "leader",
-        assignedCellName: def.assignedCellName,
-        createdAt: now,
-        updatedAt: null,
-      });
-    }
-  }
 
   const coordinatorDefs = [
     { name: "Irmã Neta", username: "irma.neta" },
