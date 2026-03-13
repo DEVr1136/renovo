@@ -3569,6 +3569,21 @@ function seedInitialDataIfEmpty() {
     }
   }
 
+  // Peregrinos 27/02 — Elias e Eloah novos membros
+  addMembers("Peregrinos", ["Elias", "Eloah"]);
+  addReport("Peregrinos", {
+    date: "2026-02-27", leaders: "Isabella e Sarah", coLeaders: "", host: "Lorena",
+    present: ["Isabella", "Sarah", "Roberto", "Willian", "Elias", "Isabelle", "Eloah"],
+    visitors: [
+      { name: "José",     how: "", address: "", phone: "" },
+      { name: "Lorena",   how: "", address: "", phone: "" },
+      { name: "Bruno",    how: "", address: "", phone: "" },
+      { name: "Helloany", how: "", address: "", phone: "" },
+      { name: "Kamilla",  how: "", address: "", phone: "" },
+      { name: "Wallafy",  how: "", address: "", phone: "" },
+    ],
+  });
+
   saveState(state);
 
   saveUsers(users);
