@@ -254,8 +254,16 @@ async function hydrateUsers() {
   const localUsers = loadUsers();
   const sourceUsers = remoteUsers.length > 0 ? remoteUsers : localUsers;
   users = sourceUsers.map((entry) => normalizeUser(entry)).filter(Boolean);
-  ensureDefaultUsers();
+  const defaultsAdded = ensureDefaultUsers();
   saveUsers(users);
+
+  if (defaultsAdded && firebaseApi && typeof firebaseApi.saveUsers === "function") {
+    const syncResult = await firebaseApi.saveUsers(users);
+    if (syncResult.status !== "ok") {
+      tone = "warn";
+      detail = syncResult.detail;
+    }
+  }
 
   if (!remoteUsers.length && !localUsers.length) {
     detail = "Nenhum usuario existente encontrado. Defaults do app foram criados.";
@@ -277,7 +285,7 @@ async function registerServiceWorker() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("./service-worker.js?v=2");
+    const registration = await navigator.serviceWorker.register("./service-worker.js?v=3");
     await registration.update();
     return {
       label: "Ativo",
@@ -536,31 +544,61 @@ function normalizeUser(user) {
 }
 
 function ensureDefaultUsers() {
-  if (!users.some((entry) => normalizeUsername(entry.username) === "admin")) {
-    users.push({
-      id: "admin-root",
-      name: "Administrador",
-      username: "admin",
-      password: "123456",
-      role: "admin",
-      assignedCellName: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: null,
-    });
-  }
+  const now = new Date().toISOString();
+  let changed = false;
+  const defaultUsers = [
+    { id: "admin-root", name: "Administrador", username: "admin", password: "123456", role: "admin", assignedCellName: "" },
+    { id: "pastor-judson", name: "Pastor Judson", username: "pastor.judson", password: "123456", role: "pastor", assignedCellName: "" },
+    { id: "coordinator-irma-neta", name: "Irmã Neta", username: "irma.neta", password: "123456", role: "coordinator", assignedCellName: "" },
+    { id: "coordinator-anelia", name: "Anelia", username: "anelia", password: "123456", role: "coordinator", assignedCellName: "" },
+    { id: "coordinator-adelaine", name: "Adelaine", username: "adelaine", password: "123456", role: "coordinator", assignedCellName: "" },
+    { id: "coordinator-bruno", name: "Bruno", username: "bruno", password: "123456", role: "coordinator", assignedCellName: "" },
+    { id: "coordinator-gabriel", name: "Gabriel", username: "gabriel", password: "123456", role: "coordinator", assignedCellName: "" },
+    { id: "leader-joana-branca", name: "Joana", username: "joana.branca", password: "123456", role: "leader", assignedCellName: "Branca" },
+    { id: "leader-vania-branca", name: "Vânia", username: "vania.branca", password: "123456", role: "leader", assignedCellName: "Branca" },
+    { id: "leader-josue-branca", name: "Josué", username: "josue.branca", password: "123456", role: "leader", assignedCellName: "Branca" },
+    { id: "leader-jander-cinza", name: "Jander", username: "jander.cinza", password: "123456", role: "leader", assignedCellName: "Cinza" },
+    { id: "leader-aline-cinza", name: "Aline", username: "aline.cinza", password: "123456", role: "leader", assignedCellName: "Cinza" },
+    { id: "leader-sabrina-preta", name: "Sabrina", username: "sabrina.preta", password: "123456", role: "leader", assignedCellName: "Preta" },
+    { id: "leader-filipe-preta", name: "Filipe", username: "filipe.preta", password: "123456", role: "leader", assignedCellName: "Preta" },
+    { id: "leader-jonattham-vinho", name: "Jonattham", username: "jonattham.vinho", password: "123456", role: "leader", assignedCellName: "Vinho" },
+    { id: "leader-marilene-vinho", name: "Marilene", username: "marilene.vinho", password: "123456", role: "leader", assignedCellName: "Vinho" },
+    { id: "leader-chirlene-aguia", name: "Chirlene", username: "chirlene.aguia", password: "123456", role: "leader", assignedCellName: "Visão de Águia" },
+    { id: "leader-marta-aguia", name: "Marta", username: "marta.aguia", password: "123456", role: "leader", assignedCellName: "Visão de Águia" },
+    { id: "leader-kelma-aguia", name: "Kelma", username: "kelma.aguia", password: "123456", role: "leader", assignedCellName: "Visão de Águia" },
+    { id: "leader-leticia-amarela", name: "Letícia", username: "leticia.amarela", password: "123456", role: "leader", assignedCellName: "Amarela" },
+    { id: "leader-samuel-amarela", name: "Samuel", username: "samuel.amarela", password: "123456", role: "leader", assignedCellName: "Amarela" },
+    { id: "leader-layanne-amarela", name: "Layanne", username: "layanne.amarela", password: "123456", role: "leader", assignedCellName: "Amarela" },
+    { id: "leader-evelyn-verde", name: "Evelyn", username: "evelyn.verde", password: "123456", role: "leader", assignedCellName: "Verde" },
+    { id: "leader-isabella-peregrinos", name: "Isabella", username: "isabella.peregrinos", password: "123456", role: "leader", assignedCellName: "Peregrinos" },
+    { id: "leader-sarah-peregrinos", name: "Sarah", username: "sarah.peregrinos", password: "123456", role: "leader", assignedCellName: "Peregrinos" },
+    { id: "leader-thiago-logos", name: "Thiago", username: "thiago.logos", password: "123456", role: "leader", assignedCellName: "Logos" },
+    { id: "leader-augusto-logos", name: "Augusto", username: "augusto.logos", password: "123456", role: "leader", assignedCellName: "Logos" },
+    { id: "leader-raissa-get", name: "Raíssa", username: "raissa.get", password: "123456", role: "leader", assignedCellName: "GET" },
+    { id: "leader-miguel-get", name: "Miguel", username: "miguel.get", password: "123456", role: "leader", assignedCellName: "GET" },
+    { id: "leader-vitoria-ekballo", name: "Vitória", username: "vitoria.ekballo", password: "123456", role: "leader", assignedCellName: "Ekballo" },
+    { id: "leader-pedro-ekballo", name: "Pedro", username: "pedro.ekballo", password: "123456", role: "leader", assignedCellName: "Ekballo" },
+  ];
 
-  if (!users.some((entry) => normalizeUsername(entry.username) === "pastor.judson")) {
+  defaultUsers.forEach((entry) => {
+    if (users.some((user) => normalizeUsername(user.username) === normalizeUsername(entry.username))) {
+      return;
+    }
+
     users.push({
-      id: "pastor-judson",
-      name: "Pastor Judson",
-      username: "pastor.judson",
-      password: "123456",
-      role: "pastor",
-      assignedCellName: "",
-      createdAt: new Date().toISOString(),
+      id: entry.id,
+      name: entry.name,
+      username: entry.username,
+      password: entry.password,
+      role: entry.role,
+      assignedCellName: entry.assignedCellName,
+      createdAt: now,
       updatedAt: null,
     });
-  }
+    changed = true;
+  });
+
+  return changed;
 }
 
 function loadUsers() {
