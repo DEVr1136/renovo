@@ -86,9 +86,58 @@
     }
   }
 
+  async function loadFullState() {
+    const base = await init();
+    if (!base.db) {
+      return Object.assign({}, base, { state: null });
+    }
+
+    try {
+      const stateDoc = await base.db.collection("renovo").doc("state").get();
+      return buildResult("ok", stateDoc.exists ? "Estado remoto carregado." : "Estado remoto vazio.", {
+        db: base.db,
+        state: stateDoc.exists ? stateDoc.data() : null,
+      });
+    } catch (error) {
+      return buildResult("warn", "Nao foi possivel carregar o estado remoto completo.", {
+        db: base.db,
+        state: null,
+      });
+    }
+  }
+
+  async function saveState(nextState) {
+    const base = await init();
+    if (!base.db) {
+      return buildResult("warn", "Firestore indisponivel para salvar o estado.");
+    }
+
+    try {
+      const stateToSave = {
+        cells: Array.isArray(nextState?.cells) ? nextState.cells : [],
+        reports: Array.isArray(nextState?.reports)
+          ? nextState.reports.map((report) => Object.assign({}, report, { images: [] }))
+          : [],
+        studies: Array.isArray(nextState?.studies)
+          ? nextState.studies.map((study) => Object.assign({}, study, { pdfDataUrl: "" }))
+          : [],
+        lastReportId: typeof nextState?.lastReportId === "string" ? nextState.lastReportId : null,
+      };
+
+      await base.db.collection("renovo").doc("state").set(stateToSave);
+      return buildResult("ok", "Estado salvo no Firestore.");
+    } catch (error) {
+      return buildResult("warn", "Falha ao salvar estado remoto. Os dados seguem ao menos no local.", {
+        error,
+      });
+    }
+  }
+
   window.RenovoV2Firebase = {
     init,
     loadUsers,
     loadStateSummary,
+    loadFullState,
+    saveState,
   };
 })();

@@ -664,8 +664,8 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Relatorios",
       title: "Informacoes das celulas",
-      description: "Abrir o modulo atual para preencher e consultar relatorios semanais.",
-      url: base + "index.html",
+      description: "Abrir o novo modulo da v2 para preencher e consultar relatorios semanais.",
+      url: "./report.html?v=1",
     });
   }
 

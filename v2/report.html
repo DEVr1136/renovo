@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Relatorios - Renovo v2</title>
+    <meta name="theme-color" content="#8b0d12" />
+    <link rel="icon" type="image/png" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest?v=1" />
+    <link rel="stylesheet" href="./styles.css?v=1" />
+  </head>
+  <body>
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-card">
+        <p class="eyebrow">Renovo v2</p>
+        <h1>Carregando relatorios</h1>
+        <p class="loading-copy">Preparando celulas, membros e historico para o novo modulo.</p>
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <p id="loading-status" class="loading-status">Iniciando...</p>
+      </div>
+    </div>
+
+    <div class="page-shell">
+      <div class="orb orb-a" aria-hidden="true"></div>
+      <div class="orb orb-b" aria-hidden="true"></div>
+
+      <main id="report-app" class="app-shell" hidden>
+        <section class="hero-card">
+          <p class="eyebrow">Renovo v2</p>
+          <div class="hero-row">
+            <div>
+              <h1>Modulo de relatorios</h1>
+              <p id="report-hero-copy" class="hero-copy">
+                Gere o relatorio semanal de forma limpa e separada da v1.
+              </p>
+            </div>
+
+            <div class="hero-actions">
+              <a class="ghost-btn" href="./index.html?v=1">Voltar para a home</a>
+              <button id="save-report-button" class="primary-btn" type="button">Salvar relatorio</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="report-banner" class="alert-banner" hidden></section>
+
+        <section class="panel-grid report-layout">
+          <article class="panel-card">
+            <div class="panel-head">
+              <p class="eyebrow">Formulario</p>
+              <h2>Informacoes da semana</h2>
+            </div>
+
+            <form id="report-form" class="auth-form report-form-v2">
+              <label>
+                Celula
+                <select id="report-cell" name="cellId"></select>
+              </label>
+
+              <label>
+                Data
+                <input id="report-date" name="date" type="date" required />
+              </label>
+
+              <label>
+                Lideres
+                <input id="report-leaders" name="leaders" required placeholder="Ex: Sabrina e Filipe" />
+              </label>
+
+              <label>
+                Co-lideres
+                <input id="report-co-leaders" name="coLeaders" placeholder="Ex: Ian Vieira" />
+              </label>
+
+              <label>
+                Anfitriao
+                <input id="report-host" name="host" placeholder="Ex: Casa da Joana" />
+              </label>
+
+              <div class="report-box">
+                <div class="report-box-head">
+                  <strong>Presenca dos membros</strong>
+                  <div class="report-inline-actions">
+                    <button id="mark-all-button" class="ghost-btn compact-btn" type="button">Marcar todos</button>
+                    <button id="clear-all-button" class="ghost-btn compact-btn" type="button">Limpar</button>
+                  </div>
+                </div>
+                <div id="attendance-list" class="attendance-list-v2"></div>
+              </div>
+
+              <div class="report-box">
+                <div class="report-box-head">
+                  <strong>Visitantes</strong>
+                </div>
+
+                <div class="visitor-fields-grid">
+                  <input id="visitor-name" type="text" placeholder="Nome do visitante" />
+                  <input id="visitor-how" type="text" placeholder="Como chegou" />
+                  <input id="visitor-address" type="text" placeholder="Endereco (opcional)" />
+                  <input id="visitor-phone" type="text" placeholder="Telefone (opcional)" />
+                </div>
+
+                <div class="report-inline-actions">
+                  <button id="add-visitor-button" class="ghost-btn compact-btn" type="button">Adicionar visitante</button>
+                </div>
+
+                <div id="visitor-list" class="visitor-list-v2"></div>
+              </div>
+
+              <button class="primary-btn auth-submit" type="submit">Gerar texto final</button>
+              <p id="report-feedback" class="auth-feedback"></p>
+            </form>
+          </article>
+
+          <article class="panel-card">
+            <div class="panel-head">
+              <p class="eyebrow">Resultado</p>
+              <h2>Painel do relatorio</h2>
+            </div>
+
+            <div class="summary-grid report-summary-grid">
+              <article class="summary-card">
+                <span class="mini-label">Presentes</span>
+                <strong id="summary-present">0</strong>
+              </article>
+              <article class="summary-card">
+                <span class="mini-label">Faltaram</span>
+                <strong id="summary-absent">0</strong>
+              </article>
+              <article class="summary-card">
+                <span class="mini-label">Visitantes</span>
+                <strong id="summary-visitor-count">0</strong>
+              </article>
+              <article class="summary-card">
+                <span class="mini-label">Total de pessoas</span>
+                <strong id="summary-total-people">0</strong>
+              </article>
+            </div>
+
+            <div class="report-output-wrap">
+              <div class="report-box-head">
+                <strong>Texto final</strong>
+                <button id="copy-report-button" class="ghost-btn compact-btn" type="button">Copiar</button>
+              </div>
+              <textarea id="report-output" class="report-output-v2" readonly placeholder="O texto do relatorio aparecera aqui."></textarea>
+            </div>
+
+            <div class="report-output-wrap">
+              <div class="report-box-head">
+                <strong>Historico da celula</strong>
+              </div>
+              <div id="report-history" class="report-history-v2"></div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="./firebase.js?v=1"></script>
+    <script src="./report.js?v=1"></script>
+  </body>
+</html>
