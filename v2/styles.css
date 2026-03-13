@@ -237,6 +237,24 @@ body {
   margin-top: 1rem;
 }
 
+.login-brand-lockup {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.login-brand-kicker {
+  color: rgba(35, 23, 22, 0.48);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+
+.login-brand-title {
+  color: var(--brand);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 0.95;
+}
+
 .auth-form label {
   display: grid;
   gap: 0.35rem;
