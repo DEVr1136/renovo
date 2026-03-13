@@ -3349,6 +3349,76 @@ function seedInitialDataIfEmpty() {
     ],
   });
 
+  // Vinho 06/02
+  addReport("Vinho", {
+    date: "2026-02-06", leaders: "Jonattham e Marilene", coLeaders: "", host: "",
+    present: ["Marilene", "Jonattham", "Adriana", "Silvia", "Kessio"],
+    visitors: [],
+  });
+
+  // Preta 03/02 — novos membros: Thayssa, Leticia, Faby, Andrey, Dryka
+  addMembers("Preta", ["Thayssa", "Leticia", "Faby", "Andrey", "Dryka"]);
+  addReport("Preta", {
+    date: "2026-02-03", leaders: "Sabrina e Filipe", coLeaders: "", host: "Salipe",
+    present: ["Filipe", "Sabrina", "Mikael", "Ian Vieira", "Rebeca", "Luiz Henrique", "Paulo Miguel", "Leo", "Jhonatan", "Mikaelly", "Ana", "Deivid", "Leticia", "Vitor", "Danilo", "Faby", "Andrey", "Guilherme", "Dryka"],
+    visitors: [],
+  });
+
+  // Amarela 08/02
+  addReport("Amarela", {
+    date: "2026-02-08", leaders: "Leticia", coLeaders: "Samuel e Layanne", host: "Dona Neuza",
+    present: ["Leticia", "Samuel", "Rosa", "Bia"],
+    visitors: [
+      { name: "Paulo",     how: "", address: "", phone: "" },
+      { name: "Irmã Neta", how: "", address: "", phone: "" },
+      { name: "Karla",     how: "", address: "", phone: "" },
+      { name: "José",      how: "", address: "", phone: "" },
+      { name: "Geison",    how: "", address: "", phone: "" },
+    ],
+  });
+
+  // Cinza 09/02 — Amanda Rayssa e Samuel viram membros
+  addMembers("Cinza", ["Amanda Rayssa", "Samuel"]);
+  addReport("Cinza", {
+    date: "2026-02-09", leaders: "Jander e Aline", coLeaders: "", host: "Luiz e Manu",
+    present: ["Jander", "Aline", "Amanda Rayssa", "Amanda", "Daniel", "Ray", "Mayara", "Mariana", "Luiz", "Manu", "Samuel"],
+    visitors: [],
+  });
+
+  // ── Célula Peregrinos ─────────────────────────────────────────────────────
+  if (!state.cells.some((c) => normalizeName(c.name) === "peregrinos")) {
+    const peregrMems = ["Isabella", "Sarah", "Roberto", "Erick", "Isabelle", "Willian"];
+    const peregrCell = {
+      id: createId(), name: "Peregrinos", neighborhood: "Nao informado",
+      meetingDay: "Nao definido", meetingTime: "20:00", leader: "Isabella e Sarah",
+      members: peregrMems.map(mkMember), createdAt: now,
+    };
+    state.cells.push(peregrCell);
+    state.reports.push({
+      id: createId(), cellId: peregrCell.id, date: "2026-01-06",
+      leaders: "Isabella e Sarah", coLeaders: "", host: "Lorena",
+      presentMemberIds: peregrCell.members.filter((m) => ["Isabella", "Sarah", "Roberto", "Willian", "Erick"].some((n) => normalizeName(n) === normalizeName(m.name))).map((m) => m.id),
+      visitorsCount: 4,
+      visitorNames: ["José", "Lorena", "Bruno", "Helloany"],
+      visitorDetails: [
+        { name: "José",     how: "", address: "", phone: "" },
+        { name: "Lorena",   how: "", address: "", phone: "" },
+        { name: "Bruno",    how: "", address: "", phone: "" },
+        { name: "Helloany", how: "", address: "", phone: "" },
+      ],
+      createdAt: new Date("2026-01-06T20:00:00").toISOString(),
+    });
+  }
+  const peregrLeaders = [
+    { name: "Isabella", username: "isabella.peregrinos" },
+    { name: "Sarah",    username: "sarah.peregrinos"    },
+  ];
+  for (const def of peregrLeaders) {
+    if (!users.some((u) => normalizeUsername(u.username) === def.username)) {
+      users.push({ id: createId(), name: def.name, username: def.username, password: "123456", role: "leader", assignedCellName: "Peregrinos", createdAt: now, updatedAt: null });
+    }
+  }
+
   saveState(state);
 
   saveUsers(users);
