@@ -10,14 +10,15 @@
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260313b" />
+    <link rel="stylesheet" href="styles.css?v=20260313c" />
   </head>
   <body>
     <!-- Tela de carregamento inicial -->
     <div id="loading-screen" class="loading-screen">
       <div class="loading-inner">
-        <img src="icon.png" alt="Renovo" class="loading-logo" />
-        <p class="loading-text">Carregando...</p>
+        <p class="eyebrow">Igreja Renovo</p>
+        <h1 class="loading-title">Ambiente de Células</h1>
+        <p class="loading-text">Preparando dados e sincronização do aplicativo.</p>
         <div class="loading-spinner"></div>
         <p id="loading-debug" class="loading-debug" hidden></p>
       </div>
@@ -27,12 +28,9 @@
 
     <!-- TELA DE LOGIN -->
     <div id="auth-screen" class="auth-screen">
-      <p class="eyebrow" style="text-align:center">Igreja Renovo</p>
-      <h1 style="font-family:'Fraunces',Georgia,serif;font-size:clamp(1.6rem,4vw,2.2rem);margin:0.2rem 0 1.2rem;text-align:center">
-        Ambiente de Celulas
-      </h1>
-
       <div class="auth-card">
+        <p class="eyebrow">Igreja Renovo</p>
+        <h2 style="margin:0 0 1rem;font-size:clamp(2rem,5vw,3rem)">Ambiente de Células</h2>
         <form id="login-form" class="auth-form">
           <label>
             Usuario
@@ -50,7 +48,6 @@
           <button type="submit">Entrar</button>
           <p id="auth-feedback" class="auth-feedback"></p>
         </form>
-
       </div>
     </div>
 
@@ -561,8 +558,8 @@
     <!-- Firebase SDK (compat) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="firebase-db.js?v=20260313b"></script>
-    <script src="script.js?v=20260313b"></script>
+    <script src="firebase-db.js?v=20260313c"></script>
+    <script src="script.js?v=20260313c"></script>
     <script>
       (function () {
         const debugEl = document.getElementById("loading-debug");
@@ -598,7 +595,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-13-b");
+            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-13-c");
             await registration.update();
 
             if (registration.waiting) {

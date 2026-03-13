@@ -1,4 +1,4 @@
-﻿@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&display=swap");
 
 :root {
   --bg-1: #f8f3f1;
@@ -24,9 +24,12 @@
 
 body {
   margin: 0;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-family: "Sora", "Segoe UI", sans-serif;
   color: var(--ink);
-  background: linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  background:
+    radial-gradient(circle at top left, rgba(204, 152, 141, 0.45), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(166, 60, 52, 0.18), transparent 24%),
+    linear-gradient(145deg, #fbf5f2, #efe5df 52%, #f6efea);
   min-height: 100vh;
 }
 
@@ -37,26 +40,26 @@ body.modal-open {
 .bg-shape {
   position: fixed;
   z-index: -1;
-  filter: blur(14px);
-  opacity: 0.44;
+  filter: blur(10px);
+  opacity: 0.48;
+  border-radius: 999px;
+  pointer-events: none;
 }
 
 .bg-shape-1 {
   width: 280px;
   height: 280px;
-  border-radius: 42% 58% 53% 47% / 38% 45% 55% 62%;
-  background: #e9c4c7;
-  top: -50px;
-  left: -70px;
+  background: rgba(139, 13, 18, 0.16);
+  top: -70px;
+  right: -40px;
 }
 
 .bg-shape-2 {
-  width: 380px;
-  height: 380px;
-  border-radius: 58% 42% 43% 57% / 56% 35% 65% 44%;
-  background: #e4c9bf;
-  bottom: -120px;
-  right: -90px;
+  width: 360px;
+  height: 360px;
+  background: rgba(193, 124, 84, 0.16);
+  left: -140px;
+  bottom: -160px;
 }
 
 .page {
@@ -70,10 +73,11 @@ body.modal-open {
 .loading-screen {
   position: fixed;
   inset: 0;
-  background: var(--bg-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(246, 239, 234, 0.94);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
   z-index: 9999;
 }
 
@@ -82,37 +86,56 @@ body.modal-open {
 }
 
 .loading-inner {
+  width: min(440px, 92vw);
+  border: 1px solid rgba(108, 38, 34, 0.14);
+  background: rgba(255, 250, 247, 0.86);
+  box-shadow: 0 18px 48px rgba(77, 24, 20, 0.14);
+  backdrop-filter: blur(10px);
+  border-radius: 1.6rem;
+  padding: 2rem 1.6rem;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0;
+}
+
+.loading-title {
+  margin: 0.2rem 0 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2rem, 6vw, 2.8rem);
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .loading-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 1rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 0.8rem;
+  margin-bottom: 0.6rem;
 }
 
 .loading-text {
-  font-family: "Fraunces", Georgia, serif;
-  font-size: 1.1rem;
+  font-size: 0.92rem;
   color: var(--ink-soft);
-  margin: 0;
+  margin: 0.6rem 0 0;
+  line-height: 1.6;
+  max-width: 26rem;
 }
 
 .loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--line);
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(139, 13, 18, 0.14);
   border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  margin: 1.2rem auto 0;
 }
 
 .loading-debug {
   max-width: 280px;
-  margin: 0;
+  margin: 0.8rem 0 0;
   text-align: center;
   color: var(--brand-strong);
   font-size: 0.82rem;
@@ -124,8 +147,8 @@ body.modal-open {
 }
 
 .auth-screen {
-  width: min(520px, 92vw);
-  margin: 5.5vh auto 0;
+  width: min(480px, 92vw);
+  margin: 6vh auto 0;
   animation: enter 620ms ease both;
 }
 
@@ -150,48 +173,60 @@ body.modal-open {
 .home-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 2rem 1rem;
-  border: 1.5px solid var(--line);
-  border-radius: 1.1rem;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  padding: 1.4rem 1.2rem 1.2rem;
+  border: 1px solid rgba(122, 76, 70, 0.14);
+  border-radius: 1.4rem;
   cursor: pointer;
-  background: var(--surface);
+  background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(243, 232, 227, 0.92));
   box-shadow: var(--shadow);
-  transition: transform 0.15s, box-shadow 0.15s;
-  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-align: left;
   font-family: inherit;
   color: var(--ink);
+  min-height: 140px;
 }
 
 .home-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 18px 48px rgba(74, 18, 22, 0.20);
+  box-shadow: 0 20px 50px rgba(74, 18, 22, 0.22);
 }
 
 .home-card-icon {
-  font-size: 2.4rem;
+  font-size: 1.8rem;
   line-height: 1;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(139, 13, 18, 0.1);
+  border: 1px solid rgba(139, 13, 18, 0.12);
+  margin-bottom: 0.6rem;
 }
 
 .home-card strong {
-  font-size: 1.05rem;
-  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.2rem;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .home-card small {
   font-size: 0.8rem;
   color: var(--ink-soft);
-  line-height: 1.35;
+  line-height: 1.45;
 }
 
 .home-card-celulas {
-  background: linear-gradient(150deg, #fffaf8, #f2e4e2);
+  background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(242, 228, 226, 0.92));
 }
 
 .home-card-visitantes {
-  background: linear-gradient(150deg, #fffaf8, #f3e8f1);
+  background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(243, 232, 241, 0.92));
 }
 
 /* Visitor reg inline screen */
@@ -278,7 +313,7 @@ body.modal-open {
 }
 
 .pub-success h2 {
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
   margin: 0 0 0.5rem;
   color: var(--ink);
 }
@@ -313,11 +348,12 @@ body.modal-open {
 }
 
 .auth-card {
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  padding: 1.15rem;
+  border: 1px solid rgba(108, 38, 34, 0.14);
+  border-radius: 1.6rem;
+  background: rgba(255, 250, 247, 0.86);
+  box-shadow: 0 18px 48px rgba(77, 24, 20, 0.14);
+  backdrop-filter: blur(10px);
+  padding: 1.4rem;
 }
 
 .auth-form {
@@ -381,7 +417,13 @@ body.modal-open {
 }
 
 .hero {
-  margin-bottom: 1.4rem;
+  border: 1px solid rgba(108, 38, 34, 0.14);
+  background: rgba(255, 250, 247, 0.86);
+  box-shadow: 0 18px 48px rgba(77, 24, 20, 0.14);
+  backdrop-filter: blur(10px);
+  border-radius: 1.6rem;
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 1rem;
 }
 
 .hero-top-row {
@@ -392,17 +434,19 @@ body.modal-open {
 }
 
 .eyebrow {
-  margin: 0;
+  margin: 0 0 0.4rem;
   color: var(--brand);
-  font-size: 0.84rem;
-  letter-spacing: 0.18em;
+  font-size: 0.74rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 700;
 }
 
 h1,
-h2 {
-  font-family: "Fraunces", Georgia, serif;
+h2,
+h3,
+h4 {
+  font-family: "Cormorant Garamond", Georgia, serif;
 }
 
 h1 {
@@ -449,12 +493,19 @@ h1 {
   margin-bottom: 1rem;
 }
 
-.stat-card,
-.panel {
-  border: 1px solid var(--line);
-  background: var(--surface);
+.stat-card {
+  border: 1px solid rgba(122, 76, 70, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.78), rgba(248, 235, 229, 0.9));
   box-shadow: var(--shadow);
   border-radius: 1rem;
+}
+
+.panel {
+  border: 1px solid rgba(108, 38, 34, 0.14);
+  background: rgba(255, 250, 247, 0.86);
+  box-shadow: 0 18px 48px rgba(77, 24, 20, 0.14);
+  backdrop-filter: blur(10px);
+  border-radius: 1.2rem;
 }
 
 .stat-card {
@@ -464,93 +515,86 @@ h1 {
 .stat-card p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.92rem;
+  font-size: 0.8rem;
 }
 
 .stat-card strong {
   display: block;
-  margin-top: 0.4rem;
-  font-size: 2rem;
+  margin-top: 0.35rem;
+  font-size: 2.2rem;
+  font-family: "Cormorant Garamond", Georgia, serif;
   color: var(--brand-strong);
 }
 
 .action-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.8rem;
   margin-bottom: 1rem;
 }
 
 .action-card {
   height: auto;
-  min-height: 132px;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: linear-gradient(160deg, #fffaf8, #f3e7e4);
+  min-height: 110px;
+  border: 1px solid rgba(122, 76, 70, 0.14);
+  border-radius: 1.15rem;
+  background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(243, 232, 227, 0.92));
   box-shadow: var(--shadow);
   padding: 1rem;
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
+  align-items: flex-start;
+  gap: 0.85rem;
   text-align: left;
   color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
 .action-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 20px 50px rgba(74, 18, 22, 0.22);
 }
 
 .action-icon {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-width: 2.2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.8rem;
-  background: #f3d8d9;
-  color: #7a1118;
-  font-size: 1.35rem;
+  border-radius: 0.75rem;
+  background: rgba(139, 13, 18, 0.1);
+  border: 1px solid rgba(139, 13, 18, 0.12);
+  color: var(--brand-strong);
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
 .action-content {
   display: grid;
-  gap: 0.26rem;
+  gap: 0.3rem;
 }
 
 .action-content strong {
-  font-size: 1.2rem;
-  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.15rem;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .action-content small {
   color: var(--ink-soft);
-  line-height: 1.4;
+  line-height: 1.45;
+  font-size: 0.82rem;
 }
 
-.action-card-member {
-  background: linear-gradient(160deg, #fffaf8, #f2e7e5);
-}
-
-.action-card-cells {
-  background: linear-gradient(160deg, #fffaf8, #f4eae7);
-}
-
-.action-card-report {
-  background: linear-gradient(160deg, #fffaf8, #f2e4e2);
-}
-
-.action-card-access {
-  background: linear-gradient(160deg, #fffaf8, #efe8f6);
-}
-
-.action-card-visitantes {
-  background: linear-gradient(160deg, #fffaf8, #f3e8f1);
-}
-
-.action-card-studies {
-  background: linear-gradient(160deg, #fffaf8, #f4e5e6);
-}
+.action-card-member { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(242, 231, 229, 0.92)); }
+.action-card-cells  { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(244, 234, 231, 0.92)); }
+.action-card-report { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(242, 228, 226, 0.92)); }
+.action-card-access { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(239, 232, 246, 0.92)); }
+.action-card-visitantes { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(243, 232, 241, 0.92)); }
+.action-card-studies { background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(244, 229, 230, 0.92)); }
 
 /* Visitantes modal */
 .visitantes-toolbar {
@@ -644,6 +688,7 @@ h1 {
 .panel {
   padding: 0;
   overflow: hidden;
+  border-radius: 1.2rem;
 }
 
 .panel-head {
@@ -652,9 +697,9 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
-  padding: 0.85rem 1rem;
-  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
-  border-radius: 1rem 1rem 0 0;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(135deg, rgba(139, 13, 18, 0.9), rgba(93, 8, 12, 0.92));
+  border-radius: 1.1rem 1.1rem 0 0;
   cursor: pointer;
   user-select: none;
 }
@@ -667,8 +712,10 @@ h1 {
 
 .panel-head h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   color: #fff2f2;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
 }
 
 .panel-sub {
@@ -737,11 +784,11 @@ button {
 input,
 select,
 textarea {
-  height: 2.5rem;
-  border: 1px solid var(--line);
-  border-radius: 0.65rem;
-  padding: 0 0.75rem;
-  background: #ffffff;
+  height: 2.6rem;
+  border: 1px solid rgba(122, 76, 70, 0.2);
+  border-radius: 0.95rem;
+  padding: 0 0.85rem;
+  background: rgba(255, 255, 255, 0.84);
   color: var(--ink);
 }
 
@@ -757,8 +804,8 @@ input[type="radio"] {
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid #e3bfc1;
-  border-color: #c99599;
+  outline: 2px solid rgba(139, 13, 18, 0.14);
+  border-color: rgba(139, 13, 18, 0.3);
 }
 
 textarea {
@@ -770,19 +817,20 @@ textarea {
 }
 
 button {
-  height: 2.6rem;
+  height: 2.7rem;
   border: 0;
-  border-radius: 0.7rem;
-  background: linear-gradient(145deg, var(--brand), var(--brand-strong));
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
   color: #fff5f5;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 140ms ease, filter 140ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 8px 20px rgba(139, 13, 18, 0.2);
 }
 
 button:hover {
   transform: translateY(-1px);
-  filter: brightness(1.07);
+  box-shadow: 0 12px 28px rgba(139, 13, 18, 0.3);
 }
 
 .cells-list {
@@ -791,9 +839,9 @@ button:hover {
 }
 
 .cell-card {
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  border-radius: 0.9rem;
+  border: 1px solid rgba(122, 76, 70, 0.12);
+  background: rgba(255, 251, 249, 0.96);
+  border-radius: 1rem;
   padding: 0.9rem;
   animation: card-in 320ms ease both;
 }
@@ -892,18 +940,20 @@ button:hover {
 }
 
 .ghost-btn {
-  height: 2.1rem;
-  background: transparent;
+  height: 2.4rem;
+  background: rgba(255, 250, 247, 0.88);
   color: var(--brand-strong);
-  border: 1px solid #d5afb1;
-  border-radius: 0.58rem;
-  padding: 0 0.68rem;
-  font-size: 0.87rem;
+  border: 1px solid rgba(122, 76, 70, 0.18);
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  box-shadow: none;
 }
 
 .ghost-btn:hover {
   background: #faecec;
+  transform: translateY(-1px);
 }
 
 .compact-btn {
@@ -1169,7 +1219,7 @@ button:hover {
 
 .report-output-box h4 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
 }
 
 .report-averages-box {
@@ -1305,7 +1355,7 @@ button:hover {
 
 .studies-list-head h3 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
 }
 
 .studies-list-head p {
@@ -1333,7 +1383,7 @@ button:hover {
 
 .study-item h4 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.05rem;
 }
 
@@ -1393,7 +1443,7 @@ button:hover {
 
 .access-users-head h3 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
 }
 
 .access-users-list {
@@ -1483,11 +1533,12 @@ button:hover {
   width: min(620px, 95vw);
   max-height: 92vh;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  padding: 1rem;
+  border: 1px solid rgba(108, 38, 34, 0.14);
+  border-radius: 1.4rem;
+  background: rgba(255, 250, 247, 0.96);
+  box-shadow: 0 24px 64px rgba(77, 24, 20, 0.18);
+  backdrop-filter: blur(12px);
+  padding: 1.2rem;
 }
 
 .modal-card-wide {
@@ -1561,14 +1612,14 @@ button:hover {
 
 .report-output-head h3 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.15rem;
 }
 
 #report-output {
   width: 100%;
   min-height: 520px;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-family: "Sora", "Segoe UI", sans-serif;
   background: #fff;
 }
 
