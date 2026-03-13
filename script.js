@@ -3279,6 +3279,78 @@ function seedInitialDataIfEmpty() {
     }
   }
 
+  // ── Relatórios adicionais (migração) ─────────────────────────────────────
+  const addReport = (cellName, report) => {
+    const cell = state.cells.find((c) => normalizeName(c.name) === normalizeName(cellName));
+    if (!cell) return;
+    if (state.reports.some((r) => r.cellId === cell.id && r.date === report.date)) return;
+    const present = report.present || [];
+    state.reports.push({
+      id: createId(), cellId: cell.id, date: report.date,
+      leaders: report.leaders || "", coLeaders: report.coLeaders || "", host: report.host || "",
+      presentMemberIds: cell.members.filter((m) => present.some((n) => normalizeName(n) === normalizeName(m.name))).map((m) => m.id),
+      visitorsCount: (report.visitors || []).length,
+      visitorNames: (report.visitors || []).map((v) => v.name),
+      visitorDetails: (report.visitors || []),
+      createdAt: new Date(`${report.date}T20:00:00`).toISOString(),
+    });
+  };
+
+  const addMembers = (cellName, names) => {
+    const cell = state.cells.find((c) => normalizeName(c.name) === normalizeName(cellName));
+    if (!cell) return;
+    const existing = new Set(cell.members.map((m) => normalizeName(m.name)));
+    for (const name of names) {
+      if (!existing.has(normalizeName(name))) { cell.members.push(mkMember(name)); existing.add(normalizeName(name)); }
+    }
+  };
+
+  // Preta 27/01
+  addReport("Preta", {
+    date: "2026-01-27", leaders: "Sabrina e Filipe", coLeaders: "", host: "Salipe",
+    present: ["Filipe", "Sabrina", "Mikael", "Ian Vieira", "Eliel", "Luiz Henrique", "Paulo Miguel", "Leo", "Jhonatan", "Mikaelly", "Ana", "Deivid"],
+    visitors: [],
+  });
+
+  // Branca 27/01
+  addReport("Branca", {
+    date: "2026-01-27", leaders: "Joana", coLeaders: "Josué e Vânia", host: "Joana",
+    present: ["Kelly", "Vitória", "Cecília", "Joana", "Cel", "Conceição", "Maria Lopes", "Maria Alice", "Vânia"],
+    visitors: [],
+  });
+
+  // Vinho 30/01
+  addReport("Vinho", {
+    date: "2026-01-30", leaders: "Jonattham e Marilene", coLeaders: "", host: "",
+    present: ["Marilene", "Jonattham", "Sabrina", "Marilda", "Kessio", "Adriana", "Silvia"],
+    visitors: [
+      { name: "Silva", how: "", address: "", phone: "" },
+      { name: "Luiza", how: "", address: "", phone: "" },
+      { name: "Net",   how: "", address: "", phone: "" },
+    ],
+  });
+
+  // Branca 03/02 — Tania é membro novo
+  addMembers("Branca", ["Tania"]);
+  addReport("Branca", {
+    date: "2026-02-03", leaders: "Joana", coLeaders: "Josué e Vânia", host: "Joana",
+    present: ["Kelly", "Vitória", "Cecília", "Joana", "Josué", "Conceição", "Maria Lopes", "Maria Alice", "Vânia", "Tania"],
+    visitors: [],
+  });
+
+  // Visão de Águia 03/02 — Merijane e Manu são membros novos
+  addMembers("Visão de Águia", ["Merijane", "Manu"]);
+  addReport("Visão de Águia", {
+    date: "2026-02-03", leaders: "Chirlene", coLeaders: "Kelma e Marta", host: "Chirlene",
+    present: ["Chirlene", "Kelma", "Merijane", "Denise"],
+    visitors: [
+      { name: "Geovazio", how: "", address: "", phone: "" },
+      { name: "Anali",    how: "", address: "", phone: "" },
+    ],
+  });
+
+  saveState(state);
+
   saveUsers(users);
 }
 
