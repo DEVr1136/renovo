@@ -37,7 +37,7 @@ installButton?.addEventListener("click", async () => {
 
 if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
   installButton.hidden = true;
-  setStatus("Esta v2 ja esta instalada neste dispositivo.");
+  setStatus("Este app ja esta instalado neste dispositivo.");
 }
 
 window.setTimeout(() => {

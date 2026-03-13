@@ -3,21 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Renovo v2</title>
+    <title>Ambiente Digital Renovo</title>
     <meta name="theme-color" content="#8b0d12" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="icon" type="image/png" href="../icon.png" />
     <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
-    <link rel="manifest" href="./manifest.webmanifest?v=1" />
-    <link rel="stylesheet" href="./styles.css?v=1" />
+    <link rel="manifest" href="./manifest.webmanifest?v=2" />
+    <link rel="stylesheet" href="./styles.css?v=2" />
   </head>
   <body>
     <div id="loading-screen" class="loading-screen">
       <div class="loading-card">
-        <p class="eyebrow">Renovo v2</p>
-        <h1>Preparando nova base</h1>
-        <p class="loading-copy">Carregando estrutura, diagnosticos e modo de seguranca.</p>
+        <p class="eyebrow">Ambiente Digital Renovo</p>
+        <h1>Preparando o aplicativo</h1>
+        <p class="loading-copy">Carregando estrutura, diagnosticos e recursos principais.</p>
         <div class="loading-spinner" aria-hidden="true"></div>
         <p id="loading-status" class="loading-status">Iniciando...</p>
       </div>
@@ -32,10 +32,9 @@
           <p class="eyebrow">Igreja Renovo</p>
           <div class="hero-row">
             <div>
-              <h1>Nova base do webapp</h1>
+              <h1>Ambiente Digital Renovo</h1>
               <p class="hero-copy">
-                Esta versao foi criada separada da antiga para dar um ponto limpo de publicacao,
-                instalacao e diagnostico.
+                Plataforma principal do aplicativo, com instalacao PWA, diagnostico e acesso aos modulos centrais.
               </p>
             </div>
 
@@ -52,7 +51,7 @@
           <div>
             <p class="eyebrow">Sessao</p>
             <h2 id="session-title" class="session-title">Nao autenticado</h2>
-            <p id="session-copy" class="session-copy">Entre para liberar as proximas migracoes da v2.</p>
+            <p id="session-copy" class="session-copy">Entre para acessar os modulos principais do app.</p>
           </div>
           <button id="logout-button" class="ghost-btn" type="button" hidden>Sair</button>
         </section>
@@ -61,7 +60,7 @@
           <article id="auth-panel" class="panel-card">
             <div class="panel-head">
               <p class="eyebrow">Acesso</p>
-              <h2>Entrar na v2</h2>
+              <h2>Entrar no app</h2>
             </div>
 
             <form id="login-form" class="auth-form">
@@ -80,14 +79,14 @@
             </form>
 
             <p class="auth-hint">
-              A v2 tenta carregar usuarios do Firestore primeiro e cai para localStorage se precisar.
+              O app tenta carregar usuarios do Firestore primeiro e cai para o armazenamento local se precisar.
             </p>
           </article>
 
           <article id="dashboard-panel" class="panel-card" hidden>
             <div class="panel-head">
               <p class="eyebrow">Area liberada</p>
-              <h2>Home da v2</h2>
+              <h2>Painel principal</h2>
             </div>
 
             <div class="dashboard-hero">
@@ -95,7 +94,7 @@
                 <p class="dashboard-kicker">Painel principal</p>
                 <h3 id="dashboard-heading" class="dashboard-heading">Bem-vindo</h3>
                 <p id="dashboard-copy" class="dashboard-copy">
-                  A home da v2 centraliza acesso, diagnostico e o caminho de migracao.
+                  O painel centraliza acesso, diagnostico e instalacao do aplicativo.
                 </p>
               </div>
 
@@ -179,27 +178,27 @@
           <article class="panel-card">
             <div class="panel-head">
               <p class="eyebrow">Proximo passo</p>
-              <h2>Migracao organizada</h2>
+              <h2>App pronto</h2>
             </div>
 
             <ol class="roadmap-list">
-              <li>Validar esta base nova no navegador e como PWA.</li>
-              <li>Migrar o login para esta v2.</li>
-              <li>Migrar as telas principais em blocos pequenos.</li>
-              <li>Publicar a v2 em URL propria antes de desligar a v1.</li>
+              <li>Entrar com um perfil valido.</li>
+              <li>Conferir os modulos principais do aplicativo.</li>
+              <li>Instalar o PWA no dispositivo principal.</li>
+              <li>Limpar cache se algum arquivo antigo persistir.</li>
             </ol>
           </article>
 
           <article class="panel-card">
             <div class="panel-head">
               <p class="eyebrow">Acoes rapidas</p>
-              <h2>Testes e manutencao</h2>
+              <h2>Acoes rapidas</h2>
             </div>
 
             <div class="action-list">
-              <a class="action-link" href="./install.html?v=1">Abrir guia de instalacao</a>
-              <a class="action-link" href="../index.html">Abrir versao antiga</a>
-              <button id="clear-cache-button" class="ghost-btn action-button" type="button">Limpar cache da v2</button>
+              <a class="action-link" href="./install.html?v=2">Abrir guia de instalacao</a>
+              <a class="action-link" href="./visitantes.html?v=2">Abrir cadastro de visitantes</a>
+              <button id="clear-cache-button" class="ghost-btn action-button" type="button">Limpar cache do app</button>
             </div>
           </article>
         </section>
@@ -217,7 +216,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="./firebase.js?v=1"></script>
-    <script src="./app.js?v=1"></script>
+    <script src="./firebase.js?v=2"></script>
+    <script src="./app.js?v=2"></script>
   </body>
 </html>

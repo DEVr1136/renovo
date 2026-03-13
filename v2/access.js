@@ -59,7 +59,7 @@ async function bootstrap() {
   setLoading("Carregando sessao...");
   session = loadSession();
   if (!session) {
-    showBanner("Sessao nao encontrada. Volte para a home da v2 e entre novamente.");
+    showBanner("Sessao nao encontrada. Volte para a home do app e entre novamente.");
     finishBoot();
     return;
   }

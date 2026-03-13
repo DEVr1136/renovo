@@ -79,7 +79,7 @@ async function bootstrap() {
   session = loadSession();
 
   if (!session) {
-    showBanner("Sessao nao encontrada. Volte para a home da v2 e entre novamente.");
+    showBanner("Sessao nao encontrada. Volte para a home do app e entre novamente.");
     finishBoot();
     return;
   }
@@ -418,8 +418,8 @@ function canManageStudies() {
 function updateHeroCopy() {
   if (!studiesHeroCopy) return;
   studiesHeroCopy.textContent = canManageStudies()
-    ? "Voce pode publicar estudos com link remoto ou PDF salvo localmente na v2."
-    : "Seu perfil pode abrir e consultar a biblioteca de estudos publicada na v2.";
+    ? "Voce pode publicar estudos com link remoto ou PDF salvo localmente no app."
+    : "Seu perfil pode abrir e consultar a biblioteca de estudos publicada no app.";
 }
 
 function setLoading(message) {

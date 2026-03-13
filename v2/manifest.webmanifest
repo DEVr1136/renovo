@@ -1,8 +1,9 @@
 {
-  "name": "Ambiente Digital Renovo v2",
-  "short_name": "Renovo v2",
-  "description": "Nova base PWA do Ambiente Digital Renovo.",
-  "start_url": "./index.html",
+  "id": "/renovo/v2/",
+  "name": "Ambiente Digital Renovo",
+  "short_name": "Renovo",
+  "description": "Aplicativo web do Ambiente Digital Renovo.",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4ece8",

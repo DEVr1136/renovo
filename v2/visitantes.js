@@ -165,7 +165,7 @@ function renderPanelAccess() {
     if (visitorsPanelTitle) visitorsPanelTitle.textContent = "Compartilhamento";
     if (visitorsPanelCopy) {
       visitorsPanelCopy.textContent = session?.role === "leader"
-        ? "Seu perfil na v2 nao possui painel interno de visitantes. Use esta pagina como formulario publico."
+        ? "Seu perfil no app nao possui painel interno de visitantes. Use esta pagina como formulario publico."
         : "Esta pagina ja pode ser compartilhada como formulario publico para novos visitantes.";
     }
   }
@@ -244,7 +244,7 @@ function updateHeroCopy() {
 
   if (canViewVisitorsPanel()) {
     visitorsHeroCopy.textContent =
-      "Formulario publico e painel interno liberados nesta rota. A lista abaixo reflete os cadastros da nova base.";
+      "Formulario publico e painel interno liberados nesta rota. A lista abaixo reflete os cadastros do app.";
     return;
   }
 

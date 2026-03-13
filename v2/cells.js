@@ -84,7 +84,7 @@ async function bootstrap() {
   session = loadSession();
 
   if (!session) {
-    showBanner("Sessao nao encontrada. Volte para a home da v2 e entre novamente.");
+    showBanner("Sessao nao encontrada. Volte para a home do app e entre novamente.");
     finishBoot();
     return;
   }
@@ -570,7 +570,7 @@ function updateHeroCopy() {
     return;
   }
 
-  cellsHeroCopy.textContent = "Voce pode cadastrar e organizar a estrutura das celulas na nova base.";
+  cellsHeroCopy.textContent = "Voce pode cadastrar e organizar a estrutura das celulas no app.";
 }
 
 function normalizeState(raw) {

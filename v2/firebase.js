@@ -1,4 +1,4 @@
-/* Renovo v2 Firebase bridge with graceful fallback */
+/* Renovo Firebase bridge with graceful fallback */
 (function () {
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAkVidPhtpX-o2gGlvTkdbYLQ7CJmMl3fs",
@@ -15,7 +15,7 @@
 
   async function init() {
     if (!window.firebase || typeof window.firebase.initializeApp !== "function") {
-      return buildResult("warn", "SDK do Firebase nao carregou. A v2 segue em modo local.");
+      return buildResult("warn", "SDK do Firebase nao carregou. O app segue em modo local.");
     }
 
     try {

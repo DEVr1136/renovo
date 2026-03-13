@@ -87,14 +87,14 @@ function bindEvents() {
     deferredInstallPrompt = event;
     installButton.hidden = false;
     appendLog("Instalacao PWA disponivel para este dispositivo.");
-    setStatus("install", "Instalavel", "Voce pode instalar esta v2 direto do navegador.", "ok");
+    setStatus("install", "Instalavel", "Voce pode instalar este app direto do navegador.", "ok");
   });
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
     installButton.hidden = true;
     appendLog("Aplicativo instalado com sucesso.");
-    setStatus("install", "Instalado", "Esta v2 foi instalada neste dispositivo.", "ok");
+    setStatus("install", "Instalado", "Este app foi instalado neste dispositivo.", "ok");
   });
 
   window.addEventListener("online", () => {
@@ -103,7 +103,7 @@ function bindEvents() {
   });
 
   window.addEventListener("offline", () => {
-    setStatus("network", "Offline", "Sem internet. A v2 segue em modo local.", "warn");
+    setStatus("network", "Offline", "Sem internet. O app segue em modo local.", "warn");
     appendLog("Rede indisponivel. Mantendo modo local.");
   });
 
@@ -123,7 +123,7 @@ function bindEvents() {
 
 async function bootstrap() {
   resetUiForBootstrap();
-  setLoading("Montando diagnostico da v2...");
+  setLoading("Montando diagnostico do app...");
   appendLog("Boot iniciado em " + new Date().toLocaleString("pt-BR") + ".");
   setStatus("boot", "Iniciando", "Preparando verificacoes principais.", "warn");
   setStatus(
@@ -143,7 +143,7 @@ async function bootstrap() {
     const bootResult = await Promise.race([
       runDiagnostics(),
       new Promise((_, reject) => {
-        window.setTimeout(() => reject(new Error("Tempo limite excedido na inicializacao da v2.")), 7000);
+        window.setTimeout(() => reject(new Error("Tempo limite excedido na inicializacao do app.")), 7000);
       }),
     ]);
 
@@ -155,10 +155,10 @@ async function bootstrap() {
     );
 
     if (bootResult.degraded) {
-      showBanner("A v2 abriu em modo seguro. Consulte o log abaixo antes de migrar as telas.");
+      showBanner("O app abriu em modo seguro. Consulte o log abaixo para revisar o ambiente.");
     }
   } catch (error) {
-    showBanner("A v2 abriu com erro de bootstrap: " + (error?.message || error));
+    showBanner("O app abriu com erro de bootstrap: " + (error?.message || error));
     setStatus("boot", "Erro", "A inicializacao travou antes de concluir.", "danger");
     appendLog("Bootstrap falhou: " + (error?.message || error), "danger");
   } finally {
@@ -170,7 +170,7 @@ async function bootstrap() {
 
 async function runDiagnostics() {
   let degraded = false;
-  let detail = "Base nova pronta para receber as proximas migracoes.";
+  let detail = "Aplicativo pronto para uso com diagnostico ativo.";
 
   setLoading("Checando Firebase...");
   const firebaseApi = window.RenovoV2Firebase;
@@ -220,9 +220,9 @@ async function runDiagnostics() {
   setLoading("Finalizando...");
   if (!navigator.onLine) {
     degraded = true;
-    detail = "Rede offline detectada. A v2 segue pronta para testes locais.";
+    detail = "Rede offline detectada. O app segue pronto para testes locais.";
   } else if (degraded) {
-    detail = "Alguns modulos cairam em fallback seguro, mas a base nova esta no ar.";
+    detail = "Alguns modulos cairam em fallback seguro, mas o aplicativo esta no ar.";
   }
 
   return { degraded, message: detail };
@@ -253,10 +253,10 @@ async function hydrateUsers() {
   saveUsers(users);
 
   if (!remoteUsers.length && !localUsers.length) {
-    detail = "Nenhum usuario existente encontrado. Defaults da v2 foram criados.";
+    detail = "Nenhum usuario existente encontrado. Defaults do app foram criados.";
     tone = "warn";
   } else if (!remoteUsers.length && localUsers.length > 0) {
-    detail = "Usuarios carregados do localStorage compartilhado com a v1.";
+    detail = "Usuarios carregados do armazenamento local compartilhado com a base anterior.";
   }
 
   return { tone, detail };
@@ -272,11 +272,11 @@ async function registerServiceWorker() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("./service-worker.js?v=1");
+    const registration = await navigator.serviceWorker.register("./service-worker.js?v=2");
     await registration.update();
     return {
       label: "Ativo",
-      detail: "Cache offline da v2 registrado com sucesso.",
+      detail: "Cache offline do app registrado com sucesso.",
       tone: "ok",
     };
   } catch (error) {
@@ -289,7 +289,7 @@ async function registerServiceWorker() {
 }
 
 async function clearV2Cache() {
-  appendLog("Limpando caches e registros da v2...");
+  appendLog("Limpando caches e registros do app...");
 
   try {
     if ("serviceWorker" in navigator) {
@@ -312,10 +312,10 @@ async function clearV2Cache() {
       await Promise.all(keys.filter((key) => key.startsWith("renovo-v2-")).map((key) => caches.delete(key)));
     }
 
-    appendLog("Cache da v2 limpo. Recarregando pagina...");
+    appendLog("Cache do app limpo. Recarregando pagina...");
     window.setTimeout(() => window.location.reload(), 600);
   } catch (error) {
-    showBanner("Falha ao limpar cache da v2: " + (error?.message || error));
+    showBanner("Falha ao limpar cache do app: " + (error?.message || error));
     appendLog("Falha ao limpar cache: " + (error?.message || error), "danger");
   }
 }
@@ -360,7 +360,7 @@ function renderAuthState() {
     dashboardPanel.hidden = true;
     logoutButton.hidden = true;
     if (sessionTitle) sessionTitle.textContent = "Nao autenticado";
-    if (sessionCopy) sessionCopy.textContent = "Entre para liberar as proximas migracoes da v2.";
+    if (sessionCopy) sessionCopy.textContent = "Entre para acessar os modulos principais do aplicativo.";
     return;
   }
 
@@ -384,7 +384,7 @@ function renderAuthState() {
     dashboardCell.textContent = session.assignedCellName || "Nao vinculada";
   }
   if (dashboardHeading) {
-    dashboardHeading.textContent = "Central de acesso da v2";
+    dashboardHeading.textContent = "Central do aplicativo";
   }
   if (dashboardCopy) {
     dashboardCopy.textContent = buildAccessNote();
@@ -428,7 +428,7 @@ async function hydrateSummary() {
       visitantes = localState.visitantes;
     }
     if (cells.length || reports.length) {
-      detail = "Resumo carregado do localStorage compartilhado com a v1.";
+      detail = "Resumo carregado do armazenamento local compartilhado com a base anterior.";
     }
   }
 
@@ -641,7 +641,7 @@ function formatRole(role) {
 
 function buildAccessNote() {
   if (!session) {
-    return "Entre para ver a home autenticada da v2.";
+    return "Entre para ver a home autenticada do aplicativo.";
   }
 
   if (session.role === "leader") {
@@ -653,11 +653,10 @@ function buildAccessNote() {
   if (session.role === "pastor") {
     return "Acesso pastoral com visao geral e controle de acessos.";
   }
-  return "Acesso administrativo total liberado para a migracao da v2.";
+  return "Acesso administrativo total liberado para gerenciar o aplicativo.";
 }
 
 function getHomeActionsForSession() {
-  const base = "../";
   const cards = [];
 
   cards.push({
@@ -665,17 +664,17 @@ function getHomeActionsForSession() {
     title: session.role === "leader" ? "Minha celula" : "Celulas e membros",
     description:
       session.role === "leader"
-        ? "Abrir a leitura da sua celula vinculada na v2."
-        : "Criar celulas, organizar membros e acompanhar a estrutura da nova base.",
-    url: "./cells.html?v=1",
+        ? "Abrir a leitura da sua celula vinculada no aplicativo."
+        : "Criar celulas, organizar membros e acompanhar a estrutura principal do app.",
+    url: "./cells.html?v=2",
   });
 
   if (hasPermission("viewReports")) {
     cards.push({
       meta: "Relatorios",
       title: "Informacoes das celulas",
-      description: "Abrir o novo modulo da v2 para preencher e consultar relatorios semanais.",
-      url: "./report.html?v=1",
+      description: "Abrir o modulo do app para preencher e consultar relatorios semanais.",
+      url: "./report.html?v=2",
     });
   }
 
@@ -683,8 +682,8 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Biblioteca",
       title: "Estudos em PDF",
-      description: "Abrir a biblioteca da v2 com estudos publicados e PDFs locais ou remotos.",
-      url: "./studies.html?v=1",
+      description: "Abrir a biblioteca do app com estudos publicados e PDFs locais ou remotos.",
+      url: "./studies.html?v=2",
     });
   }
 
@@ -692,8 +691,8 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Visitantes",
       title: "Cadastro de visitantes",
-      description: "Abrir a rota da v2 com formulario publico e painel interno de acompanhamento.",
-      url: "./visitantes.html?v=1",
+      description: "Abrir a rota do app com formulario publico e painel interno de acompanhamento.",
+      url: "./visitantes.html?v=2",
     });
   }
 
@@ -701,16 +700,16 @@ function getHomeActionsForSession() {
     cards.push({
       meta: "Acesso",
       title: "Gerenciar acessos",
-      description: "Abrir o modulo administrativo da v2 para criar, editar e remover usuarios.",
-      url: "./access.html?v=1",
+      description: "Abrir o modulo administrativo do app para criar, editar e remover usuarios.",
+      url: "./access.html?v=2",
     });
   }
 
   cards.push({
     meta: "Instalacao",
-    title: "Guia da v2",
-    description: "Abrir a tela de instalacao e suporte da nova base.",
-    url: "./install.html?v=1",
+    title: "Instalar app",
+    description: "Abrir a tela de instalacao e suporte do aplicativo.",
+    url: "./install.html?v=2",
   });
 
   return cards;

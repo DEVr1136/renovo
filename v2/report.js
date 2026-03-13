@@ -142,7 +142,7 @@ async function bootstrap() {
   session = loadSession();
 
   if (!session) {
-    showBanner("Sessao nao encontrada. Volte para a home da v2 e entre novamente.");
+    showBanner("Sessao nao encontrada. Volte para a home do app e entre novamente.");
     finishBoot();
     return;
   }
@@ -601,7 +601,7 @@ function updateHeroCopy() {
   if (!reportHeroCopy || !session) return;
   reportHeroCopy.textContent = isReadOnlyRole()
     ? "Seu perfil esta em modo leitura neste modulo. O historico segue visivel."
-    : "Preencha a semana, gere o texto final e salve direto na nova base.";
+    : "Preencha a semana, gere o texto final e salve direto no app.";
 }
 
 function setLoading(message) {
