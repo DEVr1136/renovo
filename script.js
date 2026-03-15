@@ -3771,18 +3771,18 @@ function renderReturningVisitList() {
 
 function getPastVisitorNames(cellId) {
   if (!cellId) return [];
-  const seen = new Set();
-  const result = [];
-  const reports = (state.reports || []).filter((r) => r.cellId === cellId);
-  for (const r of reports) {
+  // Collect names that appeared in previous reports for this cell
+  const pastNames = new Set();
+  for (const r of (state.reports || []).filter((r) => r.cellId === cellId)) {
     for (const v of (r.visitorDetails || [])) {
-      if (v.name && !seen.has(v.name)) {
-        seen.add(v.name);
-        result.push({ name: v.name, how: v.how || "", address: v.address || "", phone: v.phone || "" });
-      }
+      if (v.name) pastNames.add(v.name.trim().toLowerCase());
+    }
+    for (const name of (r.visitorNames || [])) {
+      if (name) pastNames.add(name.trim().toLowerCase());
     }
   }
-  return result;
+  // Return only visitantesPub entries whose names match — same source as "Primeira visita"
+  return loadVisitantesPub().filter((v) => v.name && pastNames.has(v.name.trim().toLowerCase()));
 }
 
 function updateVisitorTabBadges() {
