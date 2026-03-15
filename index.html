@@ -1,0 +1,626 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renovo Celulas</title>
+    <meta name="theme-color" content="#8b0d12" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css?v=20260313c" />
+  </head>
+  <body>
+    <!-- Tela de carregamento inicial -->
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-inner">
+        <p class="eyebrow">Igreja Renovo</p>
+        <h1 class="loading-title">Ambiente de Células</h1>
+        <p class="loading-text">Preparando dados e sincronização do aplicativo.</p>
+        <div class="loading-spinner"></div>
+        <p id="loading-debug" class="loading-debug" hidden></p>
+      </div>
+    </div>
+    <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
+
+    <!-- TELA DE LOGIN -->
+    <div id="auth-screen" class="auth-screen">
+      <div class="auth-card">
+        <p class="eyebrow">Igreja Renovo</p>
+        <h2 style="margin:0 0 1rem;font-size:clamp(2rem,5vw,3rem)">Ambiente de Células</h2>
+        <form id="login-form" class="auth-form">
+          <label>
+            Usuario
+            <input name="username" required autocomplete="username" placeholder="usuario" />
+          </label>
+          <label>
+            Senha
+            <div class="password-wrap">
+              <input name="password" type="password" required autocomplete="current-password" placeholder="senha" />
+              <button type="button" class="eye-btn" id="toggle-password" aria-label="Mostrar senha">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </label>
+          <button type="submit">Entrar</button>
+          <p id="auth-feedback" class="auth-feedback"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- TELA INICIAL (pós login) -->
+    <div id="home-screen" hidden>
+      <main class="page home-page">
+        <header class="hero">
+          <div class="hero-top-row">
+            <div>
+              <p class="eyebrow">Igreja Renovo</p>
+              <h1>Bem-vindo(a), <span id="home-username"></span>!</h1>
+            </div>
+            <button id="home-logout-button" type="button" class="ghost-btn">Sair</button>
+          </div>
+          <p class="subtitle">Escolha onde deseja acessar.</p>
+        </header>
+
+        <section class="home-cards">
+          <button class="home-card home-card-celulas" id="go-to-celulas" type="button">
+            <span class="home-card-icon">🌿</span>
+            <strong>Ambiente de Células</strong>
+            <small>Gerencie células, membros e relatórios semanais.</small>
+          </button>
+
+          <button class="home-card home-card-visitantes" id="go-to-visitor-form" type="button">
+            <span class="home-card-icon">🤝</span>
+            <strong>Cadastro de Visitantes</strong>
+            <small>Registre visitantes que chegaram à Igreja Renovo.</small>
+          </button>
+        </section>
+      </main>
+    </div>
+
+    <!-- TELA FORMULÁRIO DE VISITANTES (inline) -->
+    <div id="visitor-form-screen" hidden>
+      <main class="page">
+        <header class="hero">
+          <div class="hero-top-row">
+            <div>
+              <p class="eyebrow">Igreja Renovo</p>
+              <h1>Cadastro de Visitantes</h1>
+            </div>
+            <button id="visitor-form-back" type="button" class="ghost-btn">← Voltar</button>
+          </div>
+          <p class="subtitle">Preencha os dados do visitante.</p>
+        </header>
+
+        <div class="visitor-reg-wrap">
+          <div class="auth-card">
+            <div id="visitor-reg-success" class="pub-success" hidden>
+              <div class="pub-success-icon">✓</div>
+              <h2>Cadastro realizado!</h2>
+              <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abençoe você e sua família!</p>
+              <button type="button" id="visitor-reg-new-btn">Novo cadastro</button>
+            </div>
+
+            <form id="visitor-reg-form-inline" class="pub-form">
+              <p class="required-note">* Campo obrigatório</p>
+              <label>
+                Nome completo *
+                <input name="name" required maxlength="100" placeholder="Nome completo" autocomplete="name" />
+              </label>
+              <label>
+                Endereço
+                <input name="address" maxlength="200" placeholder="Rua, bairro, cidade" />
+              </label>
+              <label>
+                Idade
+                <input name="age" type="number" min="1" max="120" placeholder="Ex: 28" />
+              </label>
+              <label>
+                Telefone / WhatsApp
+                <input name="phone" maxlength="20" placeholder="(00) 00000-0000" inputmode="tel" />
+              </label>
+              <p id="visitor-reg-inline-error" class="form-error" hidden></p>
+              <button type="submit">Cadastrar</button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- APP PRINCIPAL -->
+    <div id="app-shell" hidden>
+      <main class="page">
+        <header class="hero">
+          <div class="hero-top-row">
+            <div>
+              <p class="eyebrow">Igreja Renovo</p>
+              <h1>Ambiente de Celulas</h1>
+            </div>
+            <button id="logout-button" type="button" class="ghost-btn">Sair</button>
+          </div>
+          <p class="subtitle">Base para lideranca acompanhar celulas, membros e crescimento.</p>
+          <div class="access-strip">
+            <p id="access-badge" class="access-badge"></p>
+            <p id="access-note" class="access-note"></p>
+          </div>
+        </header>
+
+        <section class="stats" aria-label="Resumo">
+          <article class="stat-card">
+            <p>Total de celulas</p>
+            <strong id="total-cells">0</strong>
+          </article>
+          <article class="stat-card">
+            <p>Total de membros</p>
+            <strong id="total-members">0</strong>
+          </article>
+        </section>
+
+        <section class="action-cards">
+          <button class="action-card action-card-create" id="create-cell-card" type="button">
+            <span class="action-icon">+</span>
+            <span class="action-content">
+              <strong>Criar nova celula</strong>
+              <small>Cadastre a celula com lider, dia e horario.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-member" id="add-member-card" type="button">
+            <span class="action-icon">+</span>
+            <span class="action-content">
+              <strong>Adicionar membro</strong>
+              <small>Vincule membros as celulas cadastradas.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-report" id="weekly-report-card" type="button">
+            <span class="action-icon">&#128203;</span>
+            <span class="action-content">
+              <strong>Informações das celulas</strong>
+              <small>Preencha presenca e dados da reuniao semanal.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-access" id="manage-access-card" type="button">
+            <span class="action-icon">&#128275;</span>
+            <span class="action-content">
+              <strong>Gerenciar acessos</strong>
+              <small>Controle usuarios e permissoes do sistema.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-studies" id="view-studies-card" type="button">
+            <span class="action-icon">&#128214;</span>
+            <span class="action-content">
+              <strong>Estudos em PDF</strong>
+              <small>Pastor/Admin publicam estudos; demais acessam em leitura.</small>
+            </span>
+          </button>
+
+          <button class="action-card action-card-visitantes" id="view-visitantes-card" type="button" hidden>
+            <span class="action-icon">&#128101;</span>
+            <span class="action-content">
+              <strong>Visitantes cadastrados</strong>
+              <small>Veja quem se cadastrou pelo formulario publico.</small>
+            </span>
+          </button>
+        </section>
+      </main>
+    </div>
+
+    <!-- MODAL: Nova celula -->
+    <div class="modal-backdrop" id="cell-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cell-modal-title">
+        <div class="modal-head">
+          <h2 id="cell-modal-title">Nova celula</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-cell-modal">Fechar</button>
+        </div>
+        <form id="cell-form">
+          <label>
+            Nome da celula
+            <input name="name" required maxlength="80" />
+          </label>
+          <label>
+            Endereco
+            <input name="neighborhood" required maxlength="80" />
+          </label>
+          <label>
+            Dia da reuniao
+            <select name="meetingDay" required>
+              <option value="">Selecione...</option>
+              <option>Segunda</option>
+              <option>Terca</option>
+              <option>Quarta</option>
+              <option>Quinta</option>
+              <option>Sexta</option>
+              <option>Sabado</option>
+              <option>Domingo</option>
+            </select>
+          </label>
+          <label>
+            Horario
+            <input name="meetingTime" type="time" required />
+          </label>
+          <label>
+            Lider
+            <input name="leader" required maxlength="80" />
+          </label>
+          <button type="submit">Salvar celula</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: Novo membro -->
+    <div class="modal-backdrop" id="member-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="member-modal-title">
+        <div class="modal-head">
+          <h2 id="member-modal-title">Novo membro</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-member-modal">Fechar</button>
+        </div>
+        <form id="member-form">
+          <label>
+            Celula
+            <select name="cellId" id="member-cell" required>
+              <option value="">Cadastre uma celula primeiro</option>
+            </select>
+          </label>
+          <label>
+            Nome do membro
+            <input name="memberName" required maxlength="80" />
+          </label>
+          <label>
+            Telefone
+            <input name="memberPhone" maxlength="20" placeholder="(11) 99999-9999" />
+          </label>
+          <button type="submit">Adicionar membro</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: Ver celulas -->
+    <div class="modal-backdrop" id="cells-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="cells-modal-title">
+        <div class="modal-head">
+          <h2 id="cells-modal-title">Celulas cadastradas</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-cells-modal">Fechar</button>
+        </div>
+        <div id="cells-list" class="cells-list"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: Informações semanais -->
+    <div class="modal-backdrop" id="report-modal" hidden>
+      <div class="modal-card modal-card-xl" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+        <div class="modal-head">
+          <div>
+            <h2 id="report-modal-title">Informações semanais da celula</h2>
+            <p class="panel-sub">Preencha presenca e dados da reuniao semanal.</p>
+            <p id="report-mode-note" class="report-mode-note" hidden></p>
+          </div>
+          <button type="button" class="ghost-btn modal-close" id="close-report-modal">Fechar</button>
+        </div>
+
+        <div class="report-grid">
+          <form id="report-form" class="report-form">
+            <label>
+              Celula
+              <select name="cellId" id="report-cell" required>
+                <option value="">Cadastre uma celula primeiro</option>
+              </select>
+            </label>
+
+            <label>
+              Data
+              <input type="date" name="date" required />
+            </label>
+
+            <label>
+              Lideres
+              <input name="leaders" required maxlength="120" placeholder="Ex: Sabrina e Filipe" />
+            </label>
+
+            <label>
+              Co-lideres
+              <input name="coLeaders" maxlength="120" placeholder="Ex: Ian Vieira" />
+            </label>
+
+            <label>
+              Anfitriao (dono da casa)
+              <input name="host" maxlength="120" placeholder="Ex: Salipe" />
+            </label>
+
+            <div class="attendance-box">
+              <div class="attendance-head">
+                <p>Presenca dos membros</p>
+                <div class="attendance-actions">
+                  <button type="button" class="ghost-btn compact-btn" id="mark-all-attendance">Marcar todos</button>
+                  <button type="button" class="ghost-btn compact-btn" id="clear-attendance">Limpar</button>
+                </div>
+              </div>
+              <div id="attendance-list" class="attendance-list"></div>
+            </div>
+
+
+            <div class="visitors-section">
+              <div class="visitors-section-head">
+                <span class="visitors-section-label">Visitantes</span>
+                <button type="button" id="add-visitor-btn" class="ghost-btn small-btn">+ Adicionar</button>
+              </div>
+              <div id="visitors-list"></div>
+              <div id="visitor-inline-form" hidden>
+                <div class="visitor-form-fields">
+                  <input id="visitor-name-input" placeholder="Nome *" />
+                  <input id="visitor-how-input" placeholder="Como chegou * (ex: Convite de membro, Proximidade, Direcionado pela igreja, Espontâneo)" />
+                  <input id="visitor-address-input" placeholder="Endereço (opcional)" />
+                  <input id="visitor-phone-input" placeholder="Telefone (opcional)" />
+                </div>
+                <div class="visitor-form-actions">
+                  <button type="button" id="visitor-save-btn">Salvar</button>
+                  <button type="button" id="visitor-cancel-btn" class="ghost-btn">Cancelar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="images-section" id="report-images-section">
+              <div class="images-section-head">
+                <span class="images-section-label">Fotos da célula</span>
+                <span id="images-count-label" class="images-count"></span>
+                <button type="button" id="add-image-btn" class="ghost-btn small-btn">+ Adicionar foto</button>
+              </div>
+              <div id="images-list" class="images-grid"></div>
+              <input type="file" id="image-file-input" accept="image/*" multiple hidden />
+            </div>
+
+            <button type="submit" id="generate-report-btn">Gerar relatorio</button>
+          </form>
+
+          <aside class="report-output-box">
+            <div class="report-output-head">
+              <h3>Resultado final</h3>
+              <button type="button" class="ghost-btn" id="copy-report">Copiar texto</button>
+            </div>
+            <div id="report-chart-wrap" hidden>
+              <canvas id="report-chart" width="220" height="220"></canvas>
+              <div id="report-chart-legend" class="chart-legend"></div>
+            </div>
+            <section class="report-averages-box">
+              <h4>Medias dos ultimos 180 dias</h4>
+              <div class="report-averages-grid">
+                <article class="mini-chart-card">
+                  <p>Media da celula</p>
+                  <canvas id="cell-average-chart" width="170" height="170"></canvas>
+                  <div id="cell-average-legend" class="chart-legend"></div>
+                </article>
+                <article class="mini-chart-card">
+                  <p>Media geral</p>
+                  <canvas id="overall-average-chart" width="170" height="170"></canvas>
+                  <div id="overall-average-legend" class="chart-legend"></div>
+                </article>
+              </div>
+            </section>
+            <section class="report-history-box">
+              <div class="report-history-head">
+                <h4>Historico de relatorios</h4>
+                <p id="report-history-count"></p>
+              </div>
+              <div id="report-line-wrap" hidden>
+                <canvas id="report-line-chart" width="340" height="130"></canvas>
+                <div id="report-line-legend" class="chart-legend">
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#7a1118"></span>Presentes</span>
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b9343a"></span>Faltantes</span>
+                  <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#b68a64"></span>Visitantes</span>
+                </div>
+              </div>
+              <div id="report-history-list" class="report-history-list"></div>
+            </section>
+            <div id="report-images-gallery" class="report-images-gallery" hidden></div>
+            <textarea
+              id="report-output"
+              rows="24"
+              readonly
+              placeholder="O relatorio sera exibido aqui."
+            ></textarea>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Gerenciar acessos -->
+    <div class="modal-backdrop" id="access-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="access-modal-title">
+        <div class="modal-head">
+          <h2 id="access-modal-title">Gerenciar acessos</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-access-modal">Fechar</button>
+        </div>
+
+        <div class="access-grid">
+          <div class="access-form">
+            <form id="access-form">
+              <input name="userId" type="hidden" value="" />
+              <label>
+                Nome completo
+                <input name="name" required maxlength="80" />
+              </label>
+              <label>
+                Usuario (login)
+                <input name="username" required maxlength="40" />
+              </label>
+              <label>
+                Senha (em branco = nao altera)
+                <input name="password" type="password" maxlength="80" />
+              </label>
+              <label>
+                Confirmar senha
+                <input name="confirmPassword" type="password" maxlength="80" />
+              </label>
+              <label>
+                Cargo
+                <select name="role">
+                  <option value="leader">Lider de Celula</option>
+                  <option value="coordinator">Coordenador</option>
+                  <option value="pastor">Pastor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label>
+                Celula vinculada (para lideres)
+                <input name="assignedCellName" maxlength="80" placeholder="Nome exato da celula" />
+              </label>
+              <div class="access-form-actions">
+                <button type="submit" id="save-access-button">Salvar acesso</button>
+                <button type="button" class="ghost-btn" id="cancel-access-edit" hidden>Cancelar edicao</button>
+              </div>
+              <p id="access-feedback" class="access-feedback"></p>
+            </form>
+          </div>
+
+          <div class="access-users-box">
+            <div class="access-users-head">
+              <h3>Usuarios cadastrados</h3>
+            </div>
+            <div id="access-users-list" class="access-users-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Visitantes cadastrados -->
+    <div class="modal-backdrop" id="visitantes-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="visitantes-modal-title">
+        <div class="modal-head">
+          <h2 id="visitantes-modal-title">Visitantes cadastrados</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-visitantes-modal">Fechar</button>
+        </div>
+
+        <div class="visitantes-toolbar">
+          <input id="visitantes-search" type="search" placeholder="Buscar por nome..." class="visitantes-search" />
+          <span id="visitantes-count" class="visitantes-count"></span>
+          <button type="button" id="copy-visitantes-link" class="ghost-btn small-btn">Copiar link publico</button>
+        </div>
+
+        <div id="visitantes-list" class="visitantes-list"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: Estudos em PDF -->
+    <div class="modal-backdrop" id="studies-modal" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="studies-modal-title">
+        <div class="modal-head">
+          <div>
+            <h2 id="studies-modal-title">Estudos em PDF</h2>
+            <p class="panel-sub">Pastor/Admin podem publicar. Demais níveis acessam em leitura.</p>
+          </div>
+          <button type="button" class="ghost-btn modal-close" id="close-studies-modal">Fechar</button>
+        </div>
+
+        <div class="studies-grid">
+          <section class="studies-form-wrap" id="studies-form-wrap">
+            <form id="study-form" class="studies-form">
+              <input type="hidden" name="studyId" />
+              <label>
+                Título do estudo
+                <input name="title" maxlength="120" required />
+              </label>
+              <label>
+                Descrição (opcional)
+                <textarea name="description" rows="4" placeholder="Resumo do estudo"></textarea>
+              </label>
+              <label>
+                Link do PDF (opcional)
+                <input name="pdfUrl" type="url" placeholder="https://..." />
+              </label>
+              <label>
+                Ou enviar arquivo PDF (opcional)
+                <input name="pdfFile" id="study-pdf-file" type="file" accept="application/pdf" />
+              </label>
+              <div class="access-form-actions">
+                <button type="submit" id="save-study-button">Publicar estudo</button>
+                <button type="button" class="ghost-btn" id="cancel-study-edit" hidden>Cancelar edicao</button>
+              </div>
+              <p id="study-feedback" class="access-feedback"></p>
+            </form>
+          </section>
+
+          <section class="studies-list-wrap">
+            <div class="studies-list-head">
+              <h3>Biblioteca de estudos</h3>
+              <p id="studies-count"></p>
+            </div>
+            <div id="studies-list" class="studies-list"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-db.js?v=20260313c"></script>
+    <script src="script.js?v=20260313c"></script>
+    <script>
+      (function () {
+        const debugEl = document.getElementById("loading-debug");
+        const showDebug = (message) => {
+          if (!debugEl) return;
+          debugEl.hidden = false;
+          debugEl.textContent = message;
+        };
+
+        window.__renovoShowLoadingDebug = showDebug;
+
+        window.addEventListener("error", (event) => {
+          const source = event.filename ? event.filename.split("/").pop() : "arquivo-desconhecido";
+          showDebug("Erro ao iniciar: " + (event.message || "falha desconhecida") + " [" + source + "]");
+        });
+
+        window.addEventListener("unhandledrejection", (event) => {
+          const reason = event.reason;
+          const message =
+            (reason && typeof reason === "object" && "message" in reason && reason.message) ||
+            String(reason || "promessa rejeitada");
+          showDebug("Falha ao carregar dados: " + message);
+        });
+
+        window.setTimeout(() => {
+          const loadingScreen = document.getElementById("loading-screen");
+          if (loadingScreen && !loadingScreen.hidden) {
+            showDebug("Inicializacao demorando mais que o esperado. Verifique internet e atualize o app.");
+          }
+        }, 10000);
+      })();
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+          try {
+            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-13-c");
+            await registration.update();
+
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+
+            registration.addEventListener("updatefound", () => {
+              const newWorker = registration.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: "SKIP_WAITING" });
+                }
+              });
+            });
+
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              if (refreshing) return;
+              refreshing = true;
+              window.location.reload();
+            });
+          } catch (_) {}
+        });
+      }
+    </script>
+  </body>
+</html>

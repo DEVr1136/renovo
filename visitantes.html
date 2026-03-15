@@ -1,0 +1,256 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastro de Visitantes – Igreja Renovo</title>
+    <meta name="theme-color" content="#c92f2f" />
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css?v=20260312c" />
+    <style>
+      .pub-wrap {
+        width: min(480px, 92vw);
+        margin: 5vh auto 4rem;
+        animation: enter 620ms ease both;
+      }
+      .pub-title {
+        font-family: "Fraunces", Georgia, serif;
+        font-size: clamp(1.5rem, 4vw, 2rem);
+        margin: 0.25rem 0 0.4rem;
+        text-align: center;
+        color: var(--ink);
+      }
+      .pub-sub {
+        text-align: center;
+        color: var(--ink-soft);
+        font-size: 0.9rem;
+        margin: 0 0 1.2rem;
+      }
+      .pub-form {
+        display: grid;
+        gap: 0.85rem;
+      }
+      .pub-form label {
+        display: grid;
+        gap: 0.3rem;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--ink-soft);
+      }
+      .pub-form input {
+        padding: 0.55rem 0.75rem;
+        border: 1.5px solid var(--line);
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+        font-family: inherit;
+        background: #fff;
+        color: var(--ink);
+        width: 100%;
+        transition: border-color 0.18s;
+      }
+      .pub-form input:focus {
+        outline: none;
+        border-color: var(--brand);
+      }
+      .pub-form button[type="submit"] {
+        background: var(--brand);
+        color: #fff;
+        border: none;
+        border-radius: 0.55rem;
+        padding: 0.7rem 1rem;
+        font-size: 1rem;
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 0.3rem;
+        transition: background 0.18s;
+      }
+      .pub-form button[type="submit"]:hover {
+        background: var(--brand-strong);
+      }
+      .form-error {
+        color: #b0350e;
+        font-size: 0.84rem;
+        margin: 0;
+        padding: 0.4rem 0.6rem;
+        background: #fdf3ef;
+        border-radius: 0.4rem;
+        border: 1px solid #f4c9b8;
+      }
+      .pub-success {
+        text-align: center;
+        padding: 1rem 0;
+      }
+      .pub-success-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--brand);
+        color: #fff;
+        font-size: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+      }
+      .pub-success h2 {
+        font-family: "Fraunces", Georgia, serif;
+        margin: 0 0 0.5rem;
+        color: var(--ink);
+      }
+      .pub-success p {
+        color: var(--ink-soft);
+        margin: 0 0 1.2rem;
+        font-size: 0.92rem;
+      }
+      .pub-success button {
+        background: var(--brand);
+        color: #fff;
+        border: none;
+        border-radius: 0.55rem;
+        padding: 0.65rem 1.8rem;
+        font-size: 0.95rem;
+        font-family: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.18s;
+      }
+      .pub-success button:hover {
+        background: var(--brand-strong);
+      }
+      .pub-footer {
+        text-align: center;
+        margin-top: 1.4rem;
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+      }
+      .pub-footer a {
+        color: var(--brand);
+        text-decoration: none;
+      }
+      .required-note {
+        font-size: 0.78rem;
+        color: var(--ink-soft);
+        font-weight: 400;
+        margin-top: 0.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
+
+    <main class="pub-wrap">
+      <p class="eyebrow" style="text-align:center">Igreja Renovo</p>
+      <h1 class="pub-title">Bem-vindo(a)!</h1>
+      <p class="pub-sub">Ficamos felizes com sua visita. Preencha seus dados abaixo.</p>
+
+      <div class="auth-card">
+
+        <!-- SUCESSO -->
+        <div id="success-state" class="pub-success" hidden>
+          <div class="pub-success-icon">✓</div>
+          <h2>Cadastro realizado!</h2>
+          <p>Obrigado por visitar a Igreja Renovo.<br>Que Deus abençoe você e sua família!</p>
+          <button type="button" id="new-registration-btn">Novo cadastro</button>
+        </div>
+
+        <!-- FORMULÁRIO -->
+        <form id="visitor-reg-form" class="pub-form">
+          <p class="required-note">* Campo obrigatório</p>
+
+          <label>
+            Nome completo *
+            <input name="name" required maxlength="100" placeholder="Seu nome completo" autocomplete="name" />
+          </label>
+
+          <label>
+            Endereço
+            <input name="address" maxlength="200" placeholder="Rua, bairro, cidade" autocomplete="street-address" />
+          </label>
+
+          <label>
+            Idade
+            <input name="age" type="number" min="1" max="120" placeholder="Ex: 28" />
+          </label>
+
+          <label>
+            Telefone / WhatsApp
+            <input name="phone" maxlength="20" placeholder="(00) 00000-0000" autocomplete="tel" inputmode="tel" />
+          </label>
+
+          <p id="reg-error" class="form-error" hidden></p>
+
+          <button type="submit">Cadastrar</button>
+        </form>
+      </div>
+
+      <p class="pub-footer">Igreja Renovo &mdash; Sistema de células</p>
+    </main>
+
+    <script>
+      const STORAGE_KEY = "renovo_visitantes_pub_v1";
+
+      function loadList() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+        catch { return []; }
+      }
+
+      function saveList(list) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }
+
+      const regForm     = document.getElementById("visitor-reg-form");
+      const successState = document.getElementById("success-state");
+      const newRegBtn   = document.getElementById("new-registration-btn");
+      const regError    = document.getElementById("reg-error");
+
+      regForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const fd   = new FormData(regForm);
+        const name = String(fd.get("name") || "").trim();
+        if (!name) {
+          regError.textContent = "Por favor, informe seu nome.";
+          regError.hidden = false;
+          return;
+        }
+        regError.hidden = true;
+
+        const entry = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          name,
+          address : String(fd.get("address") || "").trim(),
+          age     : String(fd.get("age")     || "").trim(),
+          phone   : String(fd.get("phone")   || "").trim(),
+          registeredAt: new Date().toISOString(),
+        };
+
+        const list = loadList();
+        list.push(entry);
+        saveList(list);
+
+        regForm.hidden    = true;
+        successState.hidden = false;
+      });
+
+      newRegBtn.addEventListener("click", () => {
+        regForm.reset();
+        regForm.hidden    = false;
+        successState.hidden = true;
+        regError.hidden   = true;
+      });
+    </script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./service-worker.js?v=2026-03-12-c").catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>
+
+
