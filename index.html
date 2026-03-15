@@ -208,6 +208,8 @@
             </span>
           </button>
         </section>
+
+        <section id="tracking-section" class="tracking-section" hidden></section>
       </main>
     </div>
 
@@ -330,6 +332,27 @@
             <label>
               Anfitriao (dono da casa)
               <input name="host" maxlength="120" placeholder="Ex: Salipe" />
+            </label>
+
+            <label>
+              Local / Endereco
+              <input name="address" maxlength="120" placeholder="Ex: Rua das Flores, 123 - Bairro" />
+            </label>
+
+            <div class="visitor-count-grid">
+              <label>
+                Visitantes novos
+                <input name="newVisitorsCount" type="number" min="0" value="0" />
+              </label>
+              <label>
+                Visitantes retornaram
+                <input name="returningVisitorsCount" type="number" min="0" value="0" />
+              </label>
+            </div>
+
+            <label class="inline-check-label">
+              <input name="hadCommunion" type="checkbox" />
+              Houve comunhao nesta reuniao
             </label>
 
             <div class="attendance-box">

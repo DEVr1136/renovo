@@ -3,6 +3,7 @@ const SESSION_STORAGE_KEY = "renovo_session_v1";
 const USERS_STORAGE_KEY = "renovo_users_v1";
 const LOCAL_IMAGES_KEY = "renovo_images_v1";
 const LOCAL_PDFS_KEY = "renovo_pdfs_v1";
+const ALERTS_KEY = "renovo_alerts_v1";
 const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 // Inicializados de forma assíncrona em bootstrapApp()
@@ -84,6 +85,7 @@ const studyFeedback = document.getElementById("study-feedback");
 const saveStudyButton = document.getElementById("save-study-button");
 const cancelStudyEditButton = document.getElementById("cancel-study-edit");
 const studiesFormWrap = document.getElementById("studies-form-wrap");
+const trackingSection = document.getElementById("tracking-section");
 
 const accessBadge = document.getElementById("access-badge");
 const accessNote = document.getElementById("access-note");
@@ -1008,6 +1010,10 @@ function bindAppEvents() {
       leaders,
       coLeaders: String(formData.get("coLeaders") || "").trim(),
       host: String(formData.get("host") || "").trim(),
+      address: String(formData.get("address") || "").trim(),
+      newVisitorsCount: parseNonNegativeInt(formData.get("newVisitorsCount")),
+      returningVisitorsCount: parseNonNegativeInt(formData.get("returningVisitorsCount")),
+      hadCommunion: formData.get("hadCommunion") === "on",
       presentMemberIds: Array.from(new Set(formData.getAll("presentMemberIds").map((value) => String(value)))),
       visitorsCount: visitorsCountInput,
       visitorNames,
@@ -1018,6 +1024,7 @@ function bindAppEvents() {
 
     upsertReport(reportData);
     state.lastReportId = reportData.id;
+    try { processAbsenceAlerts(reportData, cell); } catch (_) {}
     persistAndRender();
 
     const presentIds = new Set(reportData.presentMemberIds);
@@ -1170,6 +1177,17 @@ function bindAppEvents() {
     } catch {
       fallback();
     }
+  });
+
+  trackingSection?.addEventListener("click", (e) => {
+    const saveBtn = e.target.closest("[data-alert-save]");
+    if (!saveBtn || session?.role !== "coordinator") return;
+    const alertId = saveBtn.dataset.alertSave;
+    const item = saveBtn.closest(".alert-item");
+    if (!item) return;
+    const statusSelect = item.querySelector(".alert-status-select");
+    const obsInput = item.querySelector(".alert-obs-input");
+    if (statusSelect && obsInput) handleAlertAction(alertId, statusSelect.value, obsInput.value);
   });
 }
 
@@ -1665,6 +1683,7 @@ function render() {
   applyReportMode();
   renderAccessUsers();
   renderStudies();
+  renderTrackingPanel();
   autoOpenLeaderReportModal();
 }
 
@@ -2020,7 +2039,14 @@ function loadSavedReportIfExists() {
   setFormFieldValue(reportForm, "leaders", report.leaders);
   setFormFieldValue(reportForm, "coLeaders", report.coLeaders);
   setFormFieldValue(reportForm, "host", report.host);
+  setFormFieldValue(reportForm, "address", report.address);
   setFormFieldValue(reportForm, "visits", report.visits);
+  const newVisitorsField = reportForm.elements.namedItem("newVisitorsCount");
+  if (newVisitorsField && "value" in newVisitorsField) newVisitorsField.value = report.newVisitorsCount || 0;
+  const returningVisitorsField = reportForm.elements.namedItem("returningVisitorsCount");
+  if (returningVisitorsField && "value" in returningVisitorsField) returningVisitorsField.value = report.returningVisitorsCount || 0;
+  const hadCommunionField = reportForm.elements.namedItem("hadCommunion");
+  if (hadCommunionField && "checked" in hadCommunionField) hadCommunionField.checked = Boolean(report.hadCommunion);
   currentVisitors = Array.isArray(report.visitorDetails) && report.visitorDetails.length > 0
     ? report.visitorDetails.map((v) => ({ name: String(v.name || ""), how: String(v.how || ""), address: String(v.address || ""), phone: String(v.phone || "") }))
     : (Array.isArray(report.visitorNames) ? report.visitorNames.map((n) => ({ name: n, how: "", address: "", phone: "" })) : []);
@@ -2050,8 +2076,12 @@ function applyReportMode() {
     "leaders",
     "coLeaders",
     "host",
+    "address",
     "visitorsCount",
     "visitorNames",
+    "newVisitorsCount",
+    "returningVisitorsCount",
+    "hadCommunion",
   ];
 
   reportForm?.classList.toggle("readonly", readOnly);
@@ -2494,7 +2524,7 @@ function buildReportText(report, cell) {
 ${ICONS.calendar} Data: ${formatDateForReport(report.date)}
 ${ICONS.people} Lideres: ${report.leaders || "-"}
 ${ICONS.handshake} Co-lideres: ${report.coLeaders || "-"}
-${ICONS.house} Anfitriao(dono da casa): ${report.host || "-"}
+${ICONS.house} Anfitriao(dono da casa): ${report.host || "-"}${report.address ? `\n📍 Local: ${report.address}` : ""}
 ---
 ${ICONS.clipboard} MEMBROS DA CELULA (${members.length})
 
@@ -2516,7 +2546,7 @@ ${ICONS.summary} RESUMO GERAL
 ${ICONS.people} Total de membros: ${members.length}
 ${ICONS.present} Presentes: ${presentMembers.length}
 ${ICONS.visitors} Visitantes: ${report.visitorsCount}
-${ICONS.totalPeople} Total de pessoas: ${totalPeople}
+${ICONS.totalPeople} Total de pessoas: ${totalPeople}${report.hadCommunion ? "\n🍞 Comunhao: Sim" : ""}${(report.newVisitorsCount || 0) > 0 ? `\n🆕 Visitantes novos: ${report.newVisitorsCount}` : ""}${(report.returningVisitorsCount || 0) > 0 ? `\n🔄 Visitantes retornaram: ${report.returningVisitorsCount}` : ""}
 `;
 }
 
@@ -2895,6 +2925,10 @@ function normalizeReport(report) {
     visitorDetails: Array.isArray(report.visitorDetails)
       ? report.visitorDetails.map((v) => ({ name: String(v?.name || "").trim(), how: String(v?.how || "").trim(), address: String(v?.address || "").trim(), phone: String(v?.phone || "").trim() })).filter((v) => v.name)
       : [],
+    address: String(report.address || "").trim(),
+    newVisitorsCount: parseNonNegativeInt(report.newVisitorsCount),
+    returningVisitorsCount: parseNonNegativeInt(report.returningVisitorsCount),
+    hadCommunion: Boolean(report.hadCommunion),
     images: Array.isArray(report.images) ? report.images.filter((s) => typeof s === "string" && s.startsWith("data:")) : [],
     createdAt: report.createdAt || new Date().toISOString(),
     updatedAt: report.updatedAt || null,
@@ -3789,4 +3823,338 @@ function renderVisitantesList() {
       </div>
     `;
   }).join("");
+}
+
+// ── Modulo de acompanhamento ──────────────────────────────────────────────────
+
+function loadAlerts() {
+  try {
+    const raw = localStorage.getItem(ALERTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function saveAlerts(alerts) {
+  try { localStorage.setItem(ALERTS_KEY, JSON.stringify(Array.isArray(alerts) ? alerts : [])); } catch (_) {}
+}
+
+function computeHealthIndex(report, cell) {
+  let score = 0;
+  if (parseNonNegativeInt(report.newVisitorsCount) > 0) score += 2;
+  if (parseNonNegativeInt(report.returningVisitorsCount) > 0) score += 3;
+  const members = Array.isArray(cell?.members) ? cell.members.length : 0;
+  const present = Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0;
+  if (members > 0 && present / members >= 0.7) score += 2;
+  if (report.hadCommunion) score += 1;
+  return Math.min(score, 8);
+}
+
+function computeHealthLabel(score) {
+  if (score <= 3) return { label: "Estagnada", tone: "danger" };
+  if (score <= 6) return { label: "Saudavel", tone: "warn" };
+  return { label: "Em crescimento", tone: "ok" };
+}
+
+function processAbsenceAlerts(_report, cell) {
+  if (!cell || !Array.isArray(cell.members) || !cell.members.length) return;
+  const alerts = loadAlerts();
+  const cellReports = state.reports
+    .filter((r) => r.cellId === cell.id)
+    .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date));
+  for (const member of cell.members) {
+    let consecutive = 0;
+    for (const r of cellReports) {
+      if (new Set(r.presentMemberIds).has(member.id)) break;
+      consecutive++;
+    }
+    const existingIdx = alerts.findIndex(
+      (a) => a.memberId === member.id && a.cellId === cell.id && a.status !== "resolved"
+    );
+    if (consecutive >= 3) {
+      if (existingIdx === -1) {
+        alerts.push({
+          id: createId(),
+          cellId: cell.id,
+          cellName: cell.name,
+          memberId: member.id,
+          memberName: member.name,
+          consecutiveAbsences: consecutive,
+          status: "pending",
+          observation: "",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        alerts[existingIdx].consecutiveAbsences = consecutive;
+        alerts[existingIdx].updatedAt = new Date().toISOString();
+      }
+    } else if (consecutive === 0 && existingIdx !== -1) {
+      alerts[existingIdx].status = "resolved";
+      alerts[existingIdx].updatedAt = new Date().toISOString();
+    }
+  }
+  saveAlerts(alerts);
+}
+
+function handleAlertAction(alertId, status, observation) {
+  const alerts = loadAlerts();
+  const alert = alerts.find((a) => a.id === alertId);
+  if (!alert) return;
+  alert.status = status;
+  alert.observation = String(observation || "").trim();
+  alert.updatedAt = new Date().toISOString();
+  saveAlerts(alerts);
+  renderTrackingPanel();
+}
+
+function renderTrackingPanel() {
+  if (!trackingSection || !session) {
+    if (trackingSection) trackingSection.hidden = true;
+    return;
+  }
+  const role = session.role;
+  if (role === "leader") {
+    trackingSection.hidden = false;
+    renderLeaderPanel();
+  } else if (role === "coordinator") {
+    trackingSection.hidden = false;
+    renderCoordinatorPanel();
+  } else if (role === "pastor" || role === "admin") {
+    trackingSection.hidden = false;
+    renderPastorPanel();
+  } else {
+    trackingSection.hidden = true;
+  }
+}
+
+function renderLeaderPanel() {
+  const cells = getAccessibleCells();
+  if (!cells.length) { trackingSection.innerHTML = ""; return; }
+  const cell = cells[0];
+  const cellReports = state.reports
+    .filter((r) => r.cellId === cell.id)
+    .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date));
+  const lastReport = cellReports[0] || null;
+  const presentIds = lastReport ? new Set(lastReport.presentMemberIds) : new Set();
+  const presentCount = cell.members.filter((m) => presentIds.has(m.id)).length;
+
+  const memberRows = cell.members.map((member) => {
+    let consecutive = 0;
+    for (const r of cellReports) {
+      if (new Set(r.presentMemberIds).has(member.id)) break;
+      consecutive++;
+    }
+    const present = presentIds.has(member.id);
+    const tone = present ? "ok" : consecutive >= 3 ? "danger" : consecutive > 0 ? "warn" : "neutral";
+    const label = present ? "Presente" : consecutive > 0 ? `${consecutive}ª falta` : "Sem registro";
+    return `<div class="tracking-member-row">
+      <span>${escapeHtml(member.name)}</span>
+      <span class="tracking-badge badge-${tone}">${label}</span>
+    </div>`;
+  }).join("");
+
+  const historyRows = cellReports.slice(0, 6).map((r) => {
+    const stats = getReportStats(r);
+    return `<div class="tracking-history-row">
+      <span>${escapeHtml(formatDateForReport(r.date))}</span>
+      <span>${stats.present} pres. · ${stats.absent} falt. · ${stats.visitors} vis.</span>
+    </div>`;
+  }).join("");
+
+  trackingSection.innerHTML = `
+    <h2 class="tracking-title">Acompanhamento</h2>
+    <div class="tracking-grid">
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Celula ${escapeHtml(cell.name)}</h3>
+        <div class="tracking-stats-row">
+          <div class="tracking-stat"><strong>${cell.members.length}</strong><span>Membros</span></div>
+          ${lastReport ? `
+          <div class="tracking-stat"><strong>${presentCount}</strong><span>Presentes</span></div>
+          <div class="tracking-stat"><strong>${cell.members.length - presentCount}</strong><span>Faltaram</span></div>` : ""}
+        </div>
+        ${lastReport
+          ? `<p class="tracking-meta">Ultimo relatorio: ${escapeHtml(formatDateForReport(lastReport.date))}</p>`
+          : `<p class="tracking-meta">Nenhum relatorio registrado ainda.</p>`}
+      </div>
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Presenca dos membros</h3>
+        <div class="tracking-member-list">${memberRows || `<p class="empty">Sem membros.</p>`}</div>
+      </div>
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Historico recente</h3>
+        <div class="tracking-history-list">${historyRows || `<p class="empty">Nenhum relatorio.</p>`}</div>
+      </div>
+    </div>`;
+}
+
+function renderCoordinatorPanel() {
+  const activeAlerts = loadAlerts().filter((a) => a.status !== "resolved");
+
+  const cellCards = state.cells.map((cell) => {
+    const latestReport = state.reports
+      .filter((r) => r.cellId === cell.id)
+      .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date))[0] || null;
+    const score = latestReport ? computeHealthIndex(latestReport, cell) : null;
+    const { label, tone } = score !== null ? computeHealthLabel(score) : { label: "Sem dados", tone: "neutral" };
+    const cellAlertCount = activeAlerts.filter((a) => a.cellId === cell.id).length;
+    return `<div class="tracking-cell-row">
+      <div class="tracking-cell-info">
+        <strong>${escapeHtml(cell.name)}</strong>
+        <span>${cell.members.length} membros · ${latestReport ? escapeHtml(formatDateForReport(latestReport.date)) : "sem relatorio"}</span>
+      </div>
+      <div class="tracking-cell-right">
+        <span class="health-chip health-${tone}">${escapeHtml(label)} ${score !== null ? score + "/8" : ""}</span>
+        ${cellAlertCount > 0 ? `<span class="alert-count">${cellAlertCount}</span>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  const alertItems = activeAlerts.map((alert) => {
+    const statusLabel = { pending: "Pendente", monitoring: "Em acompanhamento", resolved: "Resolvido" }[alert.status] || alert.status;
+    const statusTone = { pending: "danger", monitoring: "warn", resolved: "ok" }[alert.status] || "neutral";
+    return `<div class="alert-item">
+      <div class="alert-info">
+        <strong>${escapeHtml(alert.memberName)}</strong>
+        <span>${escapeHtml(alert.cellName)} · ${alert.consecutiveAbsences} faltas consecutivas</span>
+        ${alert.observation ? `<p class="alert-obs">${escapeHtml(alert.observation)}</p>` : ""}
+      </div>
+      <div class="alert-actions">
+        <span class="alert-status-chip status-${statusTone}">${statusLabel}</span>
+        <select class="alert-status-select" data-alert-id="${escapeHtml(alert.id)}">
+          <option value="pending" ${alert.status === "pending" ? "selected" : ""}>Pendente</option>
+          <option value="monitoring" ${alert.status === "monitoring" ? "selected" : ""}>Em acompanhamento</option>
+          <option value="resolved" ${alert.status === "resolved" ? "selected" : ""}>Resolvido</option>
+        </select>
+        <input type="text" class="alert-obs-input" placeholder="Observacao..." value="${escapeHtml(alert.observation || "")}" />
+        <button type="button" class="ghost-btn tiny-btn" data-alert-save="${escapeHtml(alert.id)}">Salvar</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  trackingSection.innerHTML = `
+    <h2 class="tracking-title">Acompanhamento de celulas</h2>
+    <div class="tracking-grid">
+      <div class="tracking-card tracking-card-full">
+        <h3 class="tracking-card-title">Saude das celulas</h3>
+        <div class="tracking-cell-list">${cellCards || `<p class="empty">Nenhuma celula cadastrada.</p>`}</div>
+      </div>
+      <div class="tracking-card tracking-card-full">
+        <h3 class="tracking-card-title">Alertas de ausencia ${activeAlerts.length > 0 ? `<span class="alert-count">${activeAlerts.length}</span>` : ""}</h3>
+        ${alertItems ? `<div class="alert-list">${alertItems}</div>` : `<p class="empty">Nenhum alerta ativo no momento.</p>`}
+      </div>
+    </div>`;
+}
+
+function renderPastorPanel() {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "") + " " + String(d.getFullYear()).slice(2),
+      visitors: 0,
+      totalPresent: 0,
+      totalPossible: 0,
+      healthSum: 0,
+      healthCount: 0,
+    });
+  }
+
+  for (const report of state.reports) {
+    const monthKey = String(report.date || "").slice(0, 7);
+    const month = months.find((m) => m.key === monthKey);
+    if (!month) continue;
+    const cell = getCellById(report.cellId);
+    if (!cell) continue;
+    month.visitors += parseNonNegativeInt(report.visitorsCount);
+    month.totalPresent += Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0;
+    month.totalPossible += cell.members.length;
+    month.healthSum += computeHealthIndex(report, cell);
+    month.healthCount++;
+  }
+
+  const maxVisitors = Math.max(...months.map((m) => m.visitors), 1);
+  const avgPresences = months.map((m) => (m.totalPossible > 0 ? Math.round((m.totalPresent / m.totalPossible) * 100) : 0));
+  const avgHealthScores = months.map((m) => (m.healthCount > 0 ? Math.round((m.healthSum / m.healthCount) * 10) / 10 : 0));
+  const maxBarPx = 72;
+  const px = (val, max) => max > 0 ? Math.max(2, Math.round((val / max) * maxBarPx)) : 2;
+
+  const visitorsChart = months.map((m) =>
+    `<div class="bar-col">
+      <span class="bar-val">${m.visitors}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="height:${px(m.visitors, maxVisitors)}px"></div></div>
+      <span class="bar-label">${escapeHtml(m.label)}</span>
+    </div>`
+  ).join("");
+
+  const presenceChart = months.map((m, i) =>
+    `<div class="bar-col">
+      <span class="bar-val">${avgPresences[i]}%</span>
+      <div class="bar-wrap"><div class="bar-fill bar-fill-alt" style="height:${px(avgPresences[i], 100)}px"></div></div>
+      <span class="bar-label">${escapeHtml(m.label)}</span>
+    </div>`
+  ).join("");
+
+  const healthChart = months.map((m, i) =>
+    `<div class="bar-col">
+      <span class="bar-val">${avgHealthScores[i]}</span>
+      <div class="bar-wrap"><div class="bar-fill bar-fill-health" style="height:${px(avgHealthScores[i], 8)}px"></div></div>
+      <span class="bar-label">${escapeHtml(m.label)}</span>
+    </div>`
+  ).join("");
+
+  let estagnada = 0, saudavel = 0, crescimento = 0;
+  for (const cell of state.cells) {
+    const latest = state.reports
+      .filter((r) => r.cellId === cell.id)
+      .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date))[0];
+    if (!latest) continue;
+    const score = computeHealthIndex(latest, cell);
+    if (score <= 3) estagnada++;
+    else if (score <= 6) saudavel++;
+    else crescimento++;
+  }
+  const total = estagnada + saudavel + crescimento;
+  const pct = (n) => (total > 0 ? Math.round((n / total) * 100) : 0);
+
+  trackingSection.innerHTML = `
+    <h2 class="tracking-title">Visao consolidada</h2>
+    <div class="tracking-grid">
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Visitantes por mes</h3>
+        <div class="bar-chart">${visitorsChart}</div>
+      </div>
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Presenca media por mes</h3>
+        <div class="bar-chart">${presenceChart}</div>
+      </div>
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Saude media por mes</h3>
+        <div class="bar-chart">${healthChart}</div>
+      </div>
+      <div class="tracking-card">
+        <h3 class="tracking-card-title">Distribuicao de saude</h3>
+        ${total === 0 ? `<p class="empty">Sem dados suficientes.</p>` : `
+        <div class="health-dist-list">
+          <div class="health-dist-row">
+            <span class="health-chip health-ok">Em crescimento</span>
+            <div class="health-dist-bar"><div style="width:${pct(crescimento)}%;background:#2d7a4a"></div></div>
+            <strong>${crescimento} (${pct(crescimento)}%)</strong>
+          </div>
+          <div class="health-dist-row">
+            <span class="health-chip health-warn">Saudavel</span>
+            <div class="health-dist-bar"><div style="width:${pct(saudavel)}%;background:#b07d25"></div></div>
+            <strong>${saudavel} (${pct(saudavel)}%)</strong>
+          </div>
+          <div class="health-dist-row">
+            <span class="health-chip health-danger">Estagnada</span>
+            <div class="health-dist-bar"><div style="width:${pct(estagnada)}%;background:#b33030"></div></div>
+            <strong>${estagnada} (${pct(estagnada)}%)</strong>
+          </div>
+        </div>`}
+      </div>
+    </div>`;
 }

@@ -1734,4 +1734,360 @@ button:hover {
   }
 }
 
+/* ── Modulo de acompanhamento ────────────────────────────────────────────────── */
+
+.tracking-section {
+  margin-top: 2rem;
+}
+
+.tracking-title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+
+.tracking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.tracking-card {
+  background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(243, 232, 227, 0.92));
+  border: 1px solid rgba(122, 76, 70, 0.14);
+  border-radius: 1.2rem;
+  padding: 1.2rem;
+  box-shadow: var(--shadow);
+}
+
+.tracking-card-full {
+  grid-column: 1 / -1;
+}
+
+.tracking-card-title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.85rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tracking-stats-row {
+  display: flex;
+  gap: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.tracking-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.tracking-stat strong {
+  font-size: 1.7rem;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.tracking-stat span {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.tracking-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin: 0.4rem 0 0;
+}
+
+.tracking-member-list,
+.tracking-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tracking-member-row,
+.tracking-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tracking-member-row:last-child,
+.tracking-history-row:last-child {
+  border-bottom: none;
+}
+
+.tracking-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-ok    { background: #dff4ea; color: #1e6e41; }
+.badge-warn  { background: #fef3d7; color: #8a5c00; }
+.badge-danger{ background: #fde8e8; color: #8b1a1a; }
+.badge-neutral{ background: var(--surface-2); color: var(--ink-soft); }
+
+/* Health chips */
+.health-chip {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.health-ok     { background: #dff4ea; color: #1e6e41; }
+.health-warn   { background: #fef3d7; color: #8a5c00; }
+.health-danger { background: #fde8e8; color: #8b1a1a; }
+.health-neutral{ background: var(--surface-2); color: var(--ink-soft); }
+
+/* Cell list – coordinator */
+.tracking-cell-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tracking-cell-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.tracking-cell-row:last-child { border-bottom: none; }
+
+.tracking-cell-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.tracking-cell-info strong { font-size: 0.95rem; }
+.tracking-cell-info span   { font-size: 0.75rem; color: var(--ink-soft); }
+
+.tracking-cell-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Alert count badge */
+.alert-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  background: #b33030;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+/* Alert list */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.7rem;
+  background: var(--surface-2);
+  border-radius: 0.7rem;
+  border: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.alert-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  font-size: 0.88rem;
+  min-width: 0;
+}
+
+.alert-info strong { font-size: 0.95rem; }
+.alert-info span   { color: var(--ink-soft); font-size: 0.8rem; }
+
+.alert-obs {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0.15rem 0 0;
+  font-style: italic;
+}
+
+.alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.alert-status-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+}
+
+.status-ok     { background: #dff4ea; color: #1e6e41; }
+.status-warn   { background: #fef3d7; color: #8a5c00; }
+.status-danger { background: #fde8e8; color: #8b1a1a; }
+
+.alert-status-select,
+.alert-obs-input {
+  font-family: inherit;
+  font-size: 0.82rem;
+  padding: 0.28rem 0.5rem;
+  border: 1.5px solid var(--line);
+  border-radius: 0.45rem;
+  background: #fff;
+  color: var(--ink);
+}
+
+.alert-obs-input { width: 150px; }
+
+.alert-status-select:focus,
+.alert-obs-input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+/* Bar charts – pastor */
+.bar-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bar-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.bar-fill {
+  width: 72%;
+  background: var(--brand);
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+
+.bar-fill-alt    { background: #2d8a5e; }
+.bar-fill-health { background: #b07d25; }
+
+.bar-val {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+}
+
+.bar-label {
+  font-size: 0.62rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* Health distribution – pastor */
+.health-dist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.health-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.health-dist-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.health-dist-bar div {
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Report form extras */
+.visitor-count-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.inline-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.inline-check-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .tracking-grid      { grid-template-columns: 1fr; }
+  .visitor-count-grid { grid-template-columns: 1fr; }
+  .alert-obs-input    { width: 110px; }
+}
+
 
