@@ -331,6 +331,16 @@ function bindAuthEvents() {
     if (success) success.hidden = true;
   });
 }
+function switchVisitorTab(tab) {
+  document.querySelectorAll(".visitor-tab-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  const panelFirst = document.getElementById("visitor-panel-first");
+  const panelReturning = document.getElementById("visitor-panel-returning");
+  if (panelFirst) panelFirst.hidden = tab !== "first";
+  if (panelReturning) panelReturning.hidden = tab !== "returning";
+}
+
 function bindAppEvents() {
   createCellCard?.addEventListener("click", () => {
     if (!hasPermission("createCell")) {
@@ -362,6 +372,7 @@ function bindAppEvents() {
     applyInitialReportContext();
     loadSavedReportIfExists();
     renderAttendanceList();
+    switchVisitorTab("first");
     renderFirstVisitList();
     renderReturningVisitList();
     updateVisitorTabBadges();
@@ -857,16 +868,6 @@ function bindAppEvents() {
       checkbox.checked = false;
     });
   });
-
-  function switchVisitorTab(tab) {
-    document.querySelectorAll(".visitor-tab-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.tab === tab);
-    });
-    const panelFirst = document.getElementById("visitor-panel-first");
-    const panelReturning = document.getElementById("visitor-panel-returning");
-    if (panelFirst) panelFirst.hidden = tab !== "first";
-    if (panelReturning) panelReturning.hidden = tab !== "returning";
-  }
 
   document.querySelectorAll(".visitor-tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchVisitorTab(btn.dataset.tab));
