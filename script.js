@@ -362,6 +362,9 @@ function bindAppEvents() {
     applyInitialReportContext();
     loadSavedReportIfExists();
     renderAttendanceList();
+    renderFirstVisitList();
+    renderReturningVisitList();
+    updateVisitorTabBadges();
     renderLatestReport();
     renderReportHistory();
     applyReportMode();
@@ -855,15 +858,18 @@ function bindAppEvents() {
     });
   });
 
-  document.getElementById("visitor-tabs-bar")?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".visitor-tab-btn");
-    if (!btn) return;
-    const tab = btn.dataset.tab;
-    document.querySelectorAll(".visitor-tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+  function switchVisitorTab(tab) {
+    document.querySelectorAll(".visitor-tab-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === tab);
+    });
     const panelFirst = document.getElementById("visitor-panel-first");
     const panelReturning = document.getElementById("visitor-panel-returning");
     if (panelFirst) panelFirst.hidden = tab !== "first";
     if (panelReturning) panelReturning.hidden = tab !== "returning";
+  }
+
+  document.querySelectorAll(".visitor-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => switchVisitorTab(btn.dataset.tab));
   });
 
   document.getElementById("visitor-panel-first")?.addEventListener("change", (e) => {
@@ -2132,8 +2138,6 @@ function applyReportMode() {
   document.querySelectorAll(".visitor-first-check, .visitor-returning-check").forEach((cb) => {
     cb.disabled = readOnly || !hasPermission("submitReports");
   });
-  const visitorTabsBar = document.getElementById("visitor-tabs-bar");
-  if (visitorTabsBar) visitorTabsBar.inert = readOnly;
 }
 
 function renderReportHistory() {
