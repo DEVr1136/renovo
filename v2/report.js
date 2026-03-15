@@ -13,6 +13,9 @@ const reportLeaders = document.getElementById("report-leaders");
 const reportCoLeaders = document.getElementById("report-co-leaders");
 const reportHost = document.getElementById("report-host");
 const reportAddress = document.getElementById("report-address");
+const reportNewVisitors = document.getElementById("report-new-visitors");
+const reportReturningVisitors = document.getElementById("report-returning-visitors");
+const reportHadCommunion = document.getElementById("report-had-communion");
 const attendanceList = document.getElementById("attendance-list");
 const markAllButton = document.getElementById("mark-all-button");
 const clearAllButton = document.getElementById("clear-all-button");
@@ -232,6 +235,9 @@ function loadDefaultFormState() {
   reportCoLeaders.value = "";
   reportHost.value = "";
   if (reportAddress) reportAddress.value = "";
+  if (reportNewVisitors) reportNewVisitors.value = "0";
+  if (reportReturningVisitors) reportReturningVisitors.value = "0";
+  if (reportHadCommunion) reportHadCommunion.checked = false;
 }
 
 function loadReportIntoForm(report) {
@@ -248,6 +254,9 @@ function loadReportIntoForm(report) {
   reportCoLeaders.value = report.coLeaders || "";
   reportHost.value = report.host || "";
   if (reportAddress) reportAddress.value = report.address || "";
+  if (reportNewVisitors) reportNewVisitors.value = String(report.newVisitorsCount || 0);
+  if (reportReturningVisitors) reportReturningVisitors.value = String(report.returningVisitorsCount || 0);
+  if (reportHadCommunion) reportHadCommunion.checked = Boolean(report.hadCommunion);
 }
 
 function renderAttendance() {
@@ -370,6 +379,7 @@ async function saveCurrentReport() {
     }
   }
 
+  processAbsenceAlerts(draft, cell);
   setFeedback("Relatorio salvo com sucesso.");
   renderHistory();
   generateReportText();
@@ -389,6 +399,9 @@ function buildDraftReport() {
     coLeaders: String(reportCoLeaders.value || "").trim(),
     host: String(reportHost.value || "").trim(),
     address: String(reportAddress?.value || "").trim(),
+    newVisitorsCount: Math.max(0, parseInt(reportNewVisitors?.value || "0", 10) || 0),
+    returningVisitorsCount: Math.max(0, parseInt(reportReturningVisitors?.value || "0", 10) || 0),
+    hadCommunion: reportHadCommunion?.checked || false,
     presentMemberIds: selectedIds,
     visitorsCount: currentVisitors.length,
     visitorNames: currentVisitors.map((visitor) => visitor.name),
@@ -480,12 +493,18 @@ function buildReportText(report, cell) {
         .join("\n")
     : "Sem visitantes cadastrados.";
 
+  const healthScore = computeHealthIndex(report, cell);
+  const healthLabel = computeHealthLabel(healthScore);
+
   return `RELATORIO DA CELULA ${cell.name.toUpperCase()}
 Data: ${formatDateForReport(report.date)}
 Lideres: ${report.leaders || "-"}
 Co-lideres: ${report.coLeaders || "-"}
 Anfitriao: ${report.host || "-"}
 Local: ${report.address || "-"}
+Comunhao: ${report.hadCommunion ? "Sim" : "Nao"}
+Visitantes novos: ${report.newVisitorsCount || 0}
+Visitantes retornaram: ${report.returningVisitorsCount || 0}
 
 MEMBROS (${cell.members.length})
 ${(cell.members || []).map((member, index) => `${index + 1}. ${member.name}`).join("\n") || "Sem membros cadastrados."}
@@ -503,7 +522,10 @@ RESUMO
 Total de membros: ${cell.members.length}
 Presentes: ${presentNames.length}
 Visitantes: ${report.visitorsCount}
-Total de pessoas: ${presentNames.length + report.visitorsCount}`;
+Total de pessoas: ${presentNames.length + report.visitorsCount}
+
+SAUDE DA CELULA
+Indice: ${healthScore}/8 - ${healthLabel.label}`;
 }
 
 function isReadOnlyRole() {
@@ -552,6 +574,9 @@ function normalizeReport(report) {
     coLeaders: String(report.coLeaders || "").trim(),
     host: String(report.host || "").trim(),
     address: String(report.address || "").trim(),
+    newVisitorsCount: Number(report.newVisitorsCount || 0),
+    returningVisitorsCount: Number(report.returningVisitorsCount || 0),
+    hadCommunion: Boolean(report.hadCommunion),
     presentMemberIds: Array.isArray(report.presentMemberIds) ? report.presentMemberIds.map((id) => String(id)) : [],
     visitorsCount: Number(report.visitorsCount || 0),
     visitorNames: Array.isArray(report.visitorNames) ? report.visitorNames.map((name) => String(name)) : [],
@@ -666,4 +691,94 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// ─── Índice de saúde ───────────────────────────────────────────────────────
+
+function computeHealthIndex(report, cell) {
+  let score = 0;
+  if ((report.newVisitorsCount || 0) > 0) score += 2;
+  if ((report.returningVisitorsCount || 0) > 0) score += 3;
+  const members = Array.isArray(cell?.members) ? cell.members.length : 0;
+  const present = Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0;
+  if (members > 0 && present / members >= 0.7) score += 2;
+  if (report.hadCommunion) score += 1;
+  return Math.min(score, 8);
+}
+
+function computeHealthLabel(score) {
+  if (score <= 3) return { label: "Estagnada", tone: "danger" };
+  if (score <= 6) return { label: "Saudavel", tone: "warn" };
+  return { label: "Em crescimento", tone: "ok" };
+}
+
+// ─── Alertas de ausência ───────────────────────────────────────────────────
+
+const ALERTS_KEY = "renovo_alerts_v1";
+
+function loadAlerts() {
+  try {
+    const raw = localStorage.getItem(ALERTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveAlerts(alerts) {
+  localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+}
+
+function processAbsenceAlerts(_savedReport, cell) {
+  if (!cell || !Array.isArray(cell.members) || !cell.members.length) return;
+
+  // Todos os relatórios desta célula, mais recente primeiro
+  const cellReports = state.reports
+    .filter((r) => r.cellId === cell.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const alerts = loadAlerts();
+  const now = new Date().toISOString();
+
+  cell.members.forEach((member) => {
+    // Conta ausências consecutivas a partir do relatório mais recente
+    let consecutive = 0;
+    for (const r of cellReports) {
+      const present = Array.isArray(r.presentMemberIds) && r.presentMemberIds.includes(member.id);
+      if (present) break;
+      consecutive++;
+    }
+
+    const existingIdx = alerts.findIndex(
+      (a) => a.memberId === member.id && a.cellId === cell.id && a.status !== "resolvido"
+    );
+
+    if (consecutive === 0) {
+      // Membro voltou — resolve alerta aberto
+      if (existingIdx !== -1) {
+        alerts[existingIdx].status = "resolvido";
+        alerts[existingIdx].resolvedAt = now;
+        alerts[existingIdx].updatedAt = now;
+      }
+    } else if (consecutive >= 3) {
+      if (existingIdx === -1) {
+        alerts.push({
+          id: createId(),
+          cellId: cell.id,
+          cellName: cell.name,
+          memberId: member.id,
+          memberName: member.name,
+          consecutiveAbsences: consecutive,
+          status: "pendente",
+          note: "",
+          createdAt: now,
+          updatedAt: now,
+          resolvedAt: null,
+        });
+      } else {
+        alerts[existingIdx].consecutiveAbsences = consecutive;
+        alerts[existingIdx].updatedAt = now;
+      }
+    }
+  });
+
+  saveAlerts(alerts);
 }

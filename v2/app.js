@@ -2,6 +2,7 @@ const USERS_STORAGE_KEY = "renovo_users_v1";
 const SESSION_STORAGE_KEY = "renovo_session_v1";
 const STORAGE_KEY = "renovo_celulas_v1";
 const VISITANTES_PUB_KEY = "renovo_visitantes_pub_v1";
+const ALERTS_KEY = "renovo_alerts_v1";
 
 const loadingScreen = document.getElementById("loading-screen");
 const loadingStatus = document.getElementById("loading-status");
@@ -52,6 +53,9 @@ let deferredInstallPrompt = null;
 let users = [];
 let session = null;
 let summary = { cells: 0, members: 0, reports: 0, visitantes: 0 };
+let trackingData = { cells: [], reports: [], alerts: [] };
+
+const trackingSection = document.getElementById("tracking-section");
 
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
@@ -110,6 +114,14 @@ function bindEvents() {
   window.addEventListener("offline", () => {
     setStatus("network", "Offline", "Sem internet. O app segue em modo local.", "warn");
     appendLog("Rede indisponivel. Mantendo modo local.");
+  });
+
+  trackingSection?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-alert-action]");
+    if (!btn) return;
+    const alertId = btn.dataset.alertId;
+    const action = btn.dataset.alertAction;
+    handleAlertAction(alertId, action);
   });
 
   window.addEventListener("error", (event) => {
@@ -427,6 +439,7 @@ function renderAuthState() {
   }
   renderSummary();
   renderHomeActions();
+  renderTrackingPanel();
 }
 
 async function hydrateSummary() {
@@ -471,6 +484,12 @@ async function hydrateSummary() {
     members: cells.reduce((acc, cell) => acc + (Array.isArray(cell.members) ? cell.members.length : 0), 0),
     reports: reports.length,
     visitantes: visitantes.length,
+  };
+
+  trackingData = {
+    cells,
+    reports,
+    alerts: loadAlerts(),
   };
 
   return { tone, detail };
@@ -806,6 +825,287 @@ function hasPermission(permission) {
   };
 
   return (permissions[permission] || []).includes(session.role);
+}
+
+// ─── Índice de saúde ──────────────────────────────────────────────────────
+
+function computeHealthIndex(report, cell) {
+  let score = 0;
+  if ((report.newVisitorsCount || 0) > 0) score += 2;
+  if ((report.returningVisitorsCount || 0) > 0) score += 3;
+  const members = Array.isArray(cell?.members) ? cell.members.length : 0;
+  const present = Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0;
+  if (members > 0 && present / members >= 0.7) score += 2;
+  if (report.hadCommunion) score += 1;
+  return Math.min(score, 8);
+}
+
+function computeHealthLabel(score) {
+  if (score <= 3) return { label: "Estagnada", tone: "danger" };
+  if (score <= 6) return { label: "Saudavel", tone: "warn" };
+  return { label: "Em crescimento", tone: "ok" };
+}
+
+function avgHealthForCell(cellId) {
+  const reports = trackingData.reports
+    .filter((r) => r.cellId === cellId)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 4);
+  if (!reports.length) return null;
+  const cell = trackingData.cells.find((c) => c.id === cellId);
+  const total = reports.reduce((sum, r) => sum + computeHealthIndex(r, cell), 0);
+  return Math.round(total / reports.length);
+}
+
+// ─── Alertas ──────────────────────────────────────────────────────────────
+
+function loadAlerts() {
+  try {
+    const raw = localStorage.getItem(ALERTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveAlerts(alerts) {
+  localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+}
+
+function handleAlertAction(alertId, action) {
+  const alerts = loadAlerts();
+  const idx = alerts.findIndex((a) => a.id === alertId);
+  if (idx === -1) return;
+
+  if (action === "acompanhar") {
+    alerts[idx].status = "em_acompanhamento";
+    alerts[idx].updatedAt = new Date().toISOString();
+  } else if (action === "resolver") {
+    alerts[idx].status = "resolvido";
+    alerts[idx].resolvedAt = new Date().toISOString();
+    alerts[idx].updatedAt = new Date().toISOString();
+  } else if (action === "nota") {
+    const nota = window.prompt("Adicionar observacao para " + alerts[idx].memberName + ":", alerts[idx].note || "");
+    if (nota === null) return;
+    alerts[idx].note = nota.trim();
+    alerts[idx].updatedAt = new Date().toISOString();
+  }
+
+  saveAlerts(alerts);
+  trackingData.alerts = alerts;
+  renderTrackingPanel();
+}
+
+// ─── Painel de acompanhamento ─────────────────────────────────────────────
+
+function renderTrackingPanel() {
+  if (!trackingSection || !session) {
+    if (trackingSection) trackingSection.hidden = true;
+    return;
+  }
+
+  if (session.role === "leader") {
+    renderLeaderPanel();
+  } else if (session.role === "coordinator") {
+    renderCoordinatorPanel();
+  } else if (session.role === "pastor") {
+    renderPastorPanel();
+  } else {
+    trackingSection.hidden = true;
+  }
+}
+
+function renderLeaderPanel() {
+  const assigned = normalizeName(session.assignedCellName);
+  const cell = trackingData.cells.find((c) => normalizeName(c.name) === assigned);
+
+  if (!cell) {
+    trackingSection.hidden = true;
+    return;
+  }
+
+  const recentReports = trackingData.reports
+    .filter((r) => r.cellId === cell.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 4);
+
+  const historyHtml = recentReports.length
+    ? recentReports.map((r) => {
+        const score = computeHealthIndex(r, cell);
+        const hl = computeHealthLabel(score);
+        return `<div class="tracking-report-row">
+          <span class="tracking-date">${formatTrackingDate(r.date)}</span>
+          <span class="tracking-presence">${(r.presentMemberIds || []).length}/${cell.members.length} presentes</span>
+          <span class="health-chip" data-tone="${hl.tone}">${score}/8 · ${hl.label}</span>
+        </div>`;
+      }).join("")
+    : '<p class="status-detail">Nenhum relatorio salvo ainda.</p>';
+
+  trackingSection.hidden = false;
+  trackingSection.innerHTML = `
+    <article class="panel-card tracking-card">
+      <div class="panel-head">
+        <p class="eyebrow">Minha celula</p>
+        <h2>${escapeHtml(cell.name)}</h2>
+      </div>
+      <div class="summary-grid" style="margin-bottom:1rem">
+        <div class="mini-status"><span class="mini-label">Membros</span><strong>${cell.members.length}</strong></div>
+        <div class="mini-status"><span class="mini-label">Relatorios</span><strong>${recentReports.length}</strong></div>
+      </div>
+      <p class="eyebrow" style="margin-bottom:0.5rem">Ultimos relatorios</p>
+      <div class="tracking-report-list">${historyHtml}</div>
+    </article>`;
+}
+
+function renderCoordinatorPanel() {
+  const activeAlerts = trackingData.alerts.filter((a) => a.status !== "resolvido");
+
+  const cellCardsHtml = trackingData.cells.map((cell) => {
+    const avgScore = avgHealthForCell(cell.id);
+    const hl = avgScore !== null ? computeHealthLabel(avgScore) : null;
+    const cellAlerts = activeAlerts.filter((a) => a.cellId === cell.id).length;
+    const lastReport = trackingData.reports
+      .filter((r) => r.cellId === cell.id)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+    return `<div class="tracking-cell-row">
+      <div class="tracking-cell-info">
+        <strong>${escapeHtml(cell.name)}</strong>
+        <span class="status-detail">${lastReport ? "Ultimo: " + formatTrackingDate(lastReport.date) : "Sem relatorios"}</span>
+      </div>
+      <div class="tracking-cell-badges">
+        ${hl ? `<span class="health-chip" data-tone="${hl.tone}">${avgScore}/8 · ${hl.label}</span>` : '<span class="health-chip" data-tone="warn">Sem dados</span>'}
+        ${cellAlerts > 0 ? `<span class="alert-badge">${cellAlerts} alerta${cellAlerts > 1 ? "s" : ""}</span>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  const alertsHtml = activeAlerts.length
+    ? activeAlerts.map((a) => {
+        const statusLabel = a.status === "em_acompanhamento" ? "Em acompanhamento" : "Pendente";
+        const statusTone = a.status === "em_acompanhamento" ? "warn" : "danger";
+        return `<div class="alert-item">
+          <div class="alert-item-info">
+            <strong>${escapeHtml(a.memberName)}</strong>
+            <span class="status-detail">${escapeHtml(a.cellName)} · ${a.consecutiveAbsences} faltas seguidas</span>
+            ${a.note ? `<span class="alert-note">${escapeHtml(a.note)}</span>` : ""}
+          </div>
+          <div class="alert-item-actions">
+            <span class="health-chip" data-tone="${statusTone}">${statusLabel}</span>
+            ${a.status === "pendente" ? `<button class="ghost-btn compact-btn" data-alert-action="acompanhar" data-alert-id="${escapeHtml(a.id)}">Acompanhar</button>` : ""}
+            <button class="ghost-btn compact-btn" data-alert-action="nota" data-alert-id="${escapeHtml(a.id)}">Observacao</button>
+            <button class="ghost-btn compact-btn" data-alert-action="resolver" data-alert-id="${escapeHtml(a.id)}">Resolver</button>
+          </div>
+        </div>`;
+      }).join("")
+    : '<p class="status-detail">Nenhum alerta ativo no momento.</p>';
+
+  trackingSection.hidden = false;
+  trackingSection.innerHTML = `
+    <article class="panel-card tracking-card">
+      <div class="panel-head">
+        <p class="eyebrow">Visao geral</p>
+        <h2>Saude das celulas</h2>
+      </div>
+      <div class="tracking-cell-list">${cellCardsHtml || '<p class="status-detail">Nenhuma celula cadastrada.</p>'}</div>
+    </article>
+    <article class="panel-card tracking-card">
+      <div class="panel-head">
+        <p class="eyebrow">Alertas de presenca</p>
+        <h2>${activeAlerts.length} pendente${activeAlerts.length !== 1 ? "s" : ""}</h2>
+      </div>
+      <div class="alert-list">${alertsHtml}</div>
+    </article>`;
+}
+
+function renderPastorPanel() {
+  if (!trackingData.reports.length) {
+    trackingSection.hidden = true;
+    return;
+  }
+
+  // Últimos 6 meses
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }) });
+  }
+
+  const maxVisitors = Math.max(1, ...months.map((m) => {
+    return trackingData.reports
+      .filter((r) => r.date && r.date.startsWith(m.key))
+      .reduce((s, r) => s + (r.visitorsCount || 0), 0);
+  }));
+
+  const maxPresence = Math.max(1, ...months.map((m) => {
+    const mrs = trackingData.reports.filter((r) => r.date && r.date.startsWith(m.key));
+    if (!mrs.length) return 0;
+    return mrs.reduce((s, r) => s + (Array.isArray(r.presentMemberIds) ? r.presentMemberIds.length : 0), 0) / mrs.length;
+  }));
+
+  const visitorsBars = months.map((m) => {
+    const total = trackingData.reports
+      .filter((r) => r.date && r.date.startsWith(m.key))
+      .reduce((s, r) => s + (r.visitorsCount || 0), 0);
+    const pct = Math.round((total / maxVisitors) * 100);
+    return `<div class="bar-row">
+      <span class="bar-label">${m.label}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <span class="bar-value">${total}</span>
+    </div>`;
+  }).join("");
+
+  const presenceBars = months.map((m) => {
+    const mrs = trackingData.reports.filter((r) => r.date && r.date.startsWith(m.key));
+    const avg = mrs.length
+      ? Math.round(mrs.reduce((s, r) => s + (Array.isArray(r.presentMemberIds) ? r.presentMemberIds.length : 0), 0) / mrs.length)
+      : 0;
+    const pct = Math.round((avg / maxPresence) * 100);
+    return `<div class="bar-row">
+      <span class="bar-label">${m.label}</span>
+      <div class="bar-track"><div class="bar-fill bar-fill-alt" style="width:${pct}%"></div></div>
+      <span class="bar-value">${avg}</span>
+    </div>`;
+  }).join("");
+
+  const healthBuckets = { "Estagnada": 0, "Saudavel": 0, "Em crescimento": 0 };
+  trackingData.cells.forEach((cell) => {
+    const score = avgHealthForCell(cell.id);
+    if (score !== null) {
+      healthBuckets[computeHealthLabel(score).label]++;
+    }
+  });
+  const healthHtml = Object.entries(healthBuckets).map(([label, count]) => {
+    const toneMap = { "Estagnada": "danger", "Saudavel": "warn", "Em crescimento": "ok" };
+    return `<span class="health-chip" data-tone="${toneMap[label]}">${count} ${label}</span>`;
+  }).join("");
+
+  trackingSection.hidden = false;
+  trackingSection.innerHTML = `
+    <article class="panel-card tracking-card">
+      <div class="panel-head">
+        <p class="eyebrow">Pastor · Consolidado</p>
+        <h2>Resultados gerais</h2>
+      </div>
+      <div class="tracking-health-row" style="margin-bottom:1.5rem">${healthHtml}</div>
+      <p class="eyebrow" style="margin-bottom:0.75rem">Visitantes por mes</p>
+      <div class="bar-chart">${visitorsBars}</div>
+      <p class="eyebrow" style="margin:1.5rem 0 0.75rem">Media de presentes por mes</p>
+      <div class="bar-chart">${presenceBars}</div>
+    </article>`;
+}
+
+function formatTrackingDate(isoDate) {
+  const parts = String(isoDate || "").split("-");
+  if (parts.length !== 3) return isoDate || "-";
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function normalizeName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function escapeHtml(value) {

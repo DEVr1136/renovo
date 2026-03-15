@@ -1051,3 +1051,136 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Módulo de acompanhamento ────────────────────────────────────────────── */
+
+.tracking-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.tracking-card {
+  padding: 1.4rem 1.2rem;
+}
+
+/* Chips de saúde */
+.health-chip {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.health-chip[data-tone="ok"]     { background: rgba(35,100,70,.12); color: var(--ok); }
+.health-chip[data-tone="warn"]   { background: rgba(141,95,16,.12); color: var(--warn); }
+.health-chip[data-tone="danger"] { background: rgba(155,35,40,.12); color: var(--danger); }
+
+/* Linhas de relatório (líder) */
+.tracking-report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.tracking-report-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255,250,247,0.7);
+  border: 1px solid var(--line);
+}
+.tracking-date   { font-size: 0.82rem; color: var(--ink-soft); min-width: 6rem; }
+.tracking-presence { font-size: 0.85rem; flex: 1; }
+
+/* Linhas de células (coordenador) */
+.tracking-cell-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.tracking-cell-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255,250,247,0.7);
+  border: 1px solid var(--line);
+}
+.tracking-cell-info { display: flex; flex-direction: column; gap: 0.15rem; }
+.tracking-cell-badges { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+
+/* Badge de alerta */
+.alert-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(155,35,40,.14);
+  color: var(--danger);
+}
+
+/* Lista de alertas (coordenador) */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.alert-item {
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(155,35,40,.16);
+  background: rgba(255,247,247,0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.alert-item-info { display: flex; flex-direction: column; gap: 0.15rem; }
+.alert-note { font-size: 0.82rem; color: var(--ink-soft); font-style: italic; }
+.alert-item-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+/* Gráficos de barras (pastor) */
+.bar-chart { display: flex; flex-direction: column; gap: 0.45rem; }
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.bar-label { width: 3.5rem; color: var(--ink-soft); text-align: right; white-space: nowrap; }
+.bar-track {
+  flex: 1;
+  height: 0.65rem;
+  background: rgba(108,38,34,.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.bar-fill-alt { background: var(--ok); }
+.bar-value { width: 2rem; font-weight: 600; font-size: 0.8rem; }
+
+.tracking-health-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Checkbox inline no relatório */
+.inline-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
