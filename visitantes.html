@@ -162,14 +162,7 @@
         <form id="visitor-reg-form" class="pub-form">
           <p class="required-note">* Campo obrigatório</p>
 
-          <label>
-            Onde você está visitando? *
-            <select name="context" required>
-              <option value="">Selecione...</option>
-              <option value="celula">Célula</option>
-              <option value="culto">Culto da Igreja</option>
-            </select>
-          </label>
+          <input type="hidden" name="context" value="celula" />
 
           <label>
             Nome completo *
@@ -233,16 +226,10 @@
         }
         regError.hidden = true;
 
-        const context = String(fd.get("context") || "celula").trim();
-        if (!context) {
-          regError.textContent = "Por favor, selecione onde você está visitando.";
-          regError.hidden = false;
-          return;
-        }
         const entry = {
           id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           name,
-          context,
+          context: "celula",
           address : String(fd.get("address") || "").trim(),
           age     : String(fd.get("age")     || "").trim(),
           phone   : String(fd.get("phone")   || "").trim(),

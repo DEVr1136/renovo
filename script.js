@@ -310,7 +310,7 @@ function bindAuthEvents() {
     const entry = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name,
-      context: "celula",
+      context: "culto",
       address : String(fd.get("address") || "").trim(),
       age     : String(fd.get("age")     || "").trim(),
       phone   : String(fd.get("phone")   || "").trim(),
