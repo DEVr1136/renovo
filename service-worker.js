@@ -1,9 +1,12 @@
-const CACHE_NAME = "renovo-static-v21";
+importScripts("./app-version.js");
+
+const CACHE_NAME = "renovo-static-" + String(self.RENOVO_APP_VERSION || "dev");
 const APP_SHELL = [
   "./",
   "./index.html",
   "./instalar.html",
   "./visitantes.html",
+  "./app-version.js",
   "./styles.css",
   "./script.js",
   "./firebase-db.js",

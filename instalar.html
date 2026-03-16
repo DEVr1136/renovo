@@ -8,7 +8,8 @@
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260316d" />
+    <script src="app-version.js"></script>
+    <link rel="stylesheet" href="styles.css" />
     <style>
       .install-page {
         max-width: 400px;
@@ -81,7 +82,7 @@
       <a href="./" class="install-open-btn">Abrir no navegador</a>
     </main>
 
-    <script src="pwa-install.js?v=20260312c"></script>
+    <script src="pwa-install.js"></script>
     <script>
       // Mostra instruções para iPhone
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
@@ -93,7 +94,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const reg = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-16-e");
+            const reg = await navigator.serviceWorker.register("./service-worker.js");
             window.setTimeout(() => {
               reg.update().catch(() => {});
             }, 30000);
