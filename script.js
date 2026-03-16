@@ -310,6 +310,7 @@ function bindAuthEvents() {
     const entry = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name,
+      context: "celula",
       address : String(fd.get("address") || "").trim(),
       age     : String(fd.get("age")     || "").trim(),
       phone   : String(fd.get("phone")   || "").trim(),
@@ -894,7 +895,7 @@ function bindAppEvents() {
       const how  = (panel.querySelector(".visitor-add-how")?.value || "").trim();
       const phone = (panel.querySelector(".visitor-add-phone")?.value || "").trim();
       if (!name) { panel.querySelector(".visitor-add-name")?.focus(); return; }
-      const entry = { id: Date.now().toString(), name, how, phone, address: "", registeredAt: new Date().toISOString() };
+      const entry = { id: Date.now().toString(), name, how, phone, address: "", context: "celula", registeredAt: new Date().toISOString() };
       const list = loadVisitantesPub();
       list.push(entry);
       saveVisitantesPub(list);
@@ -3735,6 +3736,7 @@ function renderFirstVisitList() {
   if (!panel) return;
   const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
   const all = loadVisitantesPub().filter((v) => {
+    if (v.context && v.context !== "celula") return false;
     if (!v.registeredAt) return true;
     return new Date(v.registeredAt).getTime() > cutoff;
   });
