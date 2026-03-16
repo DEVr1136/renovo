@@ -1114,6 +1114,21 @@ function bindAppEvents() {
       return;
     }
 
+    // Apagar relatório (somente admin)
+    const deleteBtn = clickTarget.closest("button[data-delete-report-id]");
+    if (deleteBtn) {
+      const reportId = String(deleteBtn.dataset.deleteReportId || "");
+      const target = state.reports.find((r) => r.id === reportId);
+      if (!target) return;
+      const label = formatDateForReport(target.date);
+      if (!confirm(`Apagar o relatório de ${label}? Esta ação não pode ser desfeita.`)) return;
+      state.reports = state.reports.filter((r) => r.id !== reportId);
+      if (state.lastReportId === reportId) state.lastReportId = "";
+      saveState(state);
+      render();
+      return;
+    }
+
     const itemButton = clickTarget.closest("button[data-report-id]");
     if (!itemButton) {
       return;
@@ -2225,19 +2240,26 @@ function renderReportHistory() {
     state.lastReportId ||
     "";
 
+  const isAdmin = session?.role === "admin";
   reportHistoryList.innerHTML = reports
     .map((report) => {
       const stats = getReportStats(report);
       const isActive = report.id === activeId;
+      const deleteBtn = isAdmin
+        ? `<button type="button" class="report-delete-btn" data-delete-report-id="${escapeHtml(report.id)}" title="Apagar relatório">✕</button>`
+        : "";
       return `
-        <button
-          type="button"
-          class="history-item${isActive ? " active" : ""}"
-          data-report-id="${escapeHtml(report.id)}"
-        >
-          <strong>${escapeHtml(formatDateForReport(report.date))}</strong>
-          <small>Presentes ${stats.present} | Faltaram ${stats.absent} | Visitantes ${stats.visitors}</small>
-        </button>
+        <div class="history-item-row${isActive ? " active" : ""}">
+          <button
+            type="button"
+            class="history-item"
+            data-report-id="${escapeHtml(report.id)}"
+          >
+            <strong>${escapeHtml(formatDateForReport(report.date))}</strong>
+            <small>Presentes ${stats.present} | Faltaram ${stats.absent} | Visitantes ${stats.visitors}</small>
+          </button>
+          ${deleteBtn}
+        </div>
       `;
     })
     .join("");

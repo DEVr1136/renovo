@@ -1292,7 +1292,19 @@ button:hover {
   padding-right: 0.22rem;
 }
 
+.history-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.history-item-row.active .history-item {
+  border-color: #c79a9e;
+  background: #faecec;
+}
+
 .history-item {
+  flex: 1;
   height: auto;
   min-height: 0;
   border: 1px solid #e6d4cf;
@@ -1316,6 +1328,25 @@ button:hover {
 .history-item.active {
   border-color: #c79a9e;
   background: #faecec;
+}
+
+.report-delete-btn {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #b94a48;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-delete-btn:hover {
+  background: #fdecea;
 }
 
 .access-grid {
