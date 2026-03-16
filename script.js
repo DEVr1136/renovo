@@ -888,19 +888,6 @@ function bindAppEvents() {
   document.getElementById("visitor-panel-first")?.addEventListener("click", (e) => {
     const panel = document.getElementById("visitor-panel-first");
     if (!panel) return;
-    if (e.target.closest(".visitor-first-mark-all")) {
-      const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
-      const all = loadVisitantesPub().filter((v) => !v.registeredAt || new Date(v.registeredAt).getTime() > cutoff);
-      const allChecked = all.every((v) => currentFirstVisits.some((f) => f.name === v.name));
-      if (allChecked) {
-        currentFirstVisits = [];
-      } else {
-        all.forEach((v) => { if (!currentFirstVisits.some((f) => f.name === v.name)) currentFirstVisits.push({ name: v.name, how: v.how || "", address: v.address || "", phone: v.phone || "" }); });
-      }
-      renderFirstVisitList();
-      updateVisitorTabBadges();
-      return;
-    }
     if (e.target.closest(".visitor-add-trigger")) {
       const form = panel.querySelector(".visitor-add-form");
       if (form) { form.hidden = false; panel.querySelector(".visitor-add-name")?.focus(); }
@@ -3809,13 +3796,9 @@ function renderFirstVisitList() {
     if (!v.registeredAt) return true;
     return new Date(v.registeredAt).getTime() > cutoff;
   });
-  const allChecked = all.length > 0 && all.every((v) => currentFirstVisits.some((f) => f.name === v.name));
-  const markAllBtn = all.length > 0
-    ? `<div class="visitor-mark-row"><button type="button" class="ghost-btn small-btn visitor-first-mark-all">${allChecked ? "Limpar todos" : "Marcar todos"}</button></div>`
-    : "";
   const listHtml = all.length === 0
     ? '<p class="visitor-empty-note">Nenhum visitante cadastrado. Adicione abaixo.</p>'
-    : markAllBtn + '<div class="visitor-check-list">' + all.map((v) => {
+    : '<div class="visitor-check-list">' + all.map((v) => {
         const checked = currentFirstVisits.some((f) => f.name === v.name);
         return `<label class="visitor-check-item${checked ? " checked" : ""}">
           <input type="checkbox" class="visitor-first-check"
