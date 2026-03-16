@@ -4097,16 +4097,13 @@ function renderCoordinatorPanel() {
   }).join("");
 
   const cutoff60 = Date.now() - 60 * 24 * 60 * 60 * 1000;
-  const allVisitantes = loadVisitantesPub()
-    .filter((v) => !v.registeredAt || new Date(v.registeredAt).getTime() > cutoff60)
+  const visitantesCulto = loadVisitantesPub()
+    .filter((v) => v.context === "culto" && (!v.registeredAt || new Date(v.registeredAt).getTime() > cutoff60))
     .sort((a, b) => (b.registeredAt || "").localeCompare(a.registeredAt || ""));
 
-  const visitantesByCelula = allVisitantes.filter((v) => !v.context || v.context === "celula");
-  const visitantesByCulto  = allVisitantes.filter((v) => v.context === "culto");
-
-  const renderVisitanteRows = (list) => list.length === 0
-    ? `<p class="empty">Nenhum visitante nos últimos 60 dias.</p>`
-    : `<div class="tracking-member-list">` + list.map((v) => `
+  const cultoRows = visitantesCulto.length === 0
+    ? `<p class="empty">Nenhum visitante de culto nos últimos 60 dias.</p>`
+    : `<div class="tracking-member-list">` + visitantesCulto.map((v) => `
         <div class="tracking-member-row">
           <div>
             <strong>${escapeHtml(v.name)}</strong>
@@ -4130,12 +4127,8 @@ function renderCoordinatorPanel() {
         ${alertItems ? `<div class="alert-list">${alertItems}</div>` : `<p class="empty">Nenhum alerta ativo no momento.</p>`}
       </div>
       <div class="tracking-card tracking-card-full">
-        <h3 class="tracking-card-title">Visitantes de célula <span class="alert-count" style="background:var(--brand)">${visitantesByCelula.length}</span></h3>
-        ${renderVisitanteRows(visitantesByCelula)}
-      </div>
-      <div class="tracking-card tracking-card-full">
-        <h3 class="tracking-card-title">Visitantes de culto <span class="alert-count" style="background:var(--brand)">${visitantesByCulto.length}</span></h3>
-        ${renderVisitanteRows(visitantesByCulto)}
+        <h3 class="tracking-card-title">Visitantes de culto <span class="alert-count" style="background:var(--brand)">${visitantesCulto.length}</span></h3>
+        ${cultoRows}
       </div>
     </div>`;
 }
