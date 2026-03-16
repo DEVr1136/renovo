@@ -4,6 +4,7 @@ const USERS_STORAGE_KEY = "renovo_users_v1";
 const LOCAL_IMAGES_KEY = "renovo_images_v1";
 const LOCAL_PDFS_KEY = "renovo_pdfs_v1";
 const ALERTS_KEY = "renovo_alerts_v1";
+const INITIAL_SEED_MARKER_KEY = "renovo_seed_v2_done";
 const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 // Inicializados de forma assíncrona em bootstrapApp()
@@ -1318,10 +1319,31 @@ async function bootstrapApp() {
   }
 
   ensureDefaultUsers();
-  try { seedInitialDataIfEmpty(); } catch (e) { console.warn("[seed] erro:", e); }
+  try { runInitialSeedOnce(); } catch (e) { console.warn("[seed] erro:", e); }
   session = loadSession();
   hideLoadingScreen();
   initializeApp();
+}
+
+function runInitialSeedOnce() {
+  if (localStorage.getItem(INITIAL_SEED_MARKER_KEY) === "done") {
+    return;
+  }
+
+  const hasExistingDomainData =
+    state.cells.length > 0 ||
+    state.reports.length > 0 ||
+    state.studies.length > 0 ||
+    loadVisitantesPub().length > 0 ||
+    users.some((user) => user?.role === "leader" || user?.role === "coordinator");
+
+  if (hasExistingDomainData) {
+    localStorage.setItem(INITIAL_SEED_MARKER_KEY, "done");
+    return;
+  }
+
+  seedInitialDataIfEmpty();
+  localStorage.setItem(INITIAL_SEED_MARKER_KEY, "done");
 }
 
 function initializeApp() {
