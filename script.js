@@ -93,7 +93,6 @@ const accessNote = document.getElementById("access-note");
 let hasAppliedInitialReportContext = false;
 let hasAutoOpenedLeaderReport = false;
 let currentFirstVisits = [];
-let currentReturningVisits = [];
 let currentImages = [];
 let prevCellIds = new Set();
 const collapsedCellIds = new Set();
@@ -331,17 +330,6 @@ function bindAuthEvents() {
     if (success) success.hidden = true;
   });
 }
-function switchVisitorTab(tab) {
-  document.querySelectorAll(".visitor-tab-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.tab === tab);
-  });
-  const panelFirst = document.getElementById("visitor-panel-first");
-  const panelReturning = document.getElementById("visitor-panel-returning");
-  if (panelFirst) panelFirst.hidden = tab !== "first";
-  if (panelReturning) panelReturning.hidden = tab !== "returning";
-}
-window.switchVisitorTab = switchVisitorTab;
-
 function bindAppEvents() {
   createCellCard?.addEventListener("click", () => {
     if (!hasPermission("createCell")) {
@@ -373,10 +361,7 @@ function bindAppEvents() {
     applyInitialReportContext();
     loadSavedReportIfExists();
     renderAttendanceList();
-    switchVisitorTab("first");
     renderFirstVisitList();
-    renderReturningVisitList();
-    updateVisitorTabBadges();
     renderLatestReport();
     renderReportHistory();
     applyReportMode();
@@ -882,7 +867,6 @@ function bindAppEvents() {
       currentFirstVisits = currentFirstVisits.filter((v) => v.name !== name);
     }
     cb.closest(".visitor-check-item")?.classList.toggle("checked", cb.checked);
-    updateVisitorTabBadges();
   });
 
   document.getElementById("visitor-panel-first")?.addEventListener("click", (e) => {
@@ -918,38 +902,8 @@ function bindAppEvents() {
         currentFirstVisits.push({ name, how, address: "", phone });
       }
       renderFirstVisitList();
-      updateVisitorTabBadges();
       return;
     }
-  });
-
-  document.getElementById("visitor-panel-returning")?.addEventListener("click", (e) => {
-    if (!e.target.closest(".visitor-returning-mark-all")) return;
-    const cutoff = Date.now() - 45 * 24 * 60 * 60 * 1000;
-    const all = loadVisitantesPub().filter((v) => !v.registeredAt || new Date(v.registeredAt).getTime() > cutoff);
-    const allChecked = all.every((v) => currentReturningVisits.some((r) => r.name === v.name));
-    if (allChecked) {
-      currentReturningVisits = [];
-    } else {
-      all.forEach((v) => { if (!currentReturningVisits.some((r) => r.name === v.name)) currentReturningVisits.push({ name: v.name, how: v.how || "", address: v.address || "", phone: v.phone || "" }); });
-    }
-    renderReturningVisitList();
-    updateVisitorTabBadges();
-  });
-
-  document.getElementById("visitor-panel-returning")?.addEventListener("change", (e) => {
-    const cb = e.target.closest(".visitor-returning-check");
-    if (!cb) return;
-    const name = cb.dataset.name;
-    if (cb.checked) {
-      if (!currentReturningVisits.some((v) => v.name === name)) {
-        currentReturningVisits.push({ name, how: cb.dataset.how || "", address: "", phone: cb.dataset.phone || "" });
-      }
-    } else {
-      currentReturningVisits = currentReturningVisits.filter((v) => v.name !== name);
-    }
-    cb.closest(".visitor-check-item")?.classList.toggle("checked", cb.checked);
-    updateVisitorTabBadges();
   });
 
   // Image upload events
@@ -1013,10 +967,7 @@ function bindAppEvents() {
       reportDateInput.value = todayIsoDate();
       renderAttendanceList();
       currentFirstVisits = [];
-      currentReturningVisits = [];
       renderFirstVisitList();
-      renderReturningVisitList();
-      updateVisitorTabBadges();
       currentImages = [];
       renderImagesList();
       reportOutput.value = "";
@@ -1051,7 +1002,6 @@ function bindAppEvents() {
 
     const allCurrentVisitors = [
       ...currentFirstVisits.map((v) => ({ ...v, visitType: "first" })),
-      ...currentReturningVisits.map((v) => ({ ...v, visitType: "returning" })),
     ];
     const visitorNames = allCurrentVisitors.map((v) => v.name);
     const visitorsCountInput = allCurrentVisitors.length;
@@ -1065,7 +1015,7 @@ function bindAppEvents() {
       host: String(formData.get("host") || "").trim(),
       address: String(formData.get("address") || "").trim(),
       newVisitorsCount: currentFirstVisits.length,
-      returningVisitorsCount: currentReturningVisits.length,
+      returningVisitorsCount: 0,
       hadCommunion: formData.get("hadCommunion") === "on",
       presentMemberIds: Array.from(new Set(formData.getAll("presentMemberIds").map((value) => String(value)))),
       visitorsCount: visitorsCountInput,
@@ -1748,8 +1698,6 @@ function render() {
   loadSavedReportIfExists();
   renderAttendanceList();
   renderFirstVisitList();
-  renderReturningVisitList();
-  updateVisitorTabBadges();
   renderLatestReport();
   renderReportHistory();
   applyReportMode();
@@ -2106,10 +2054,7 @@ function loadSavedReportIfExists() {
       leadersField.value = cell.leader || session?.name || "";
     }
     currentFirstVisits = [];
-    currentReturningVisits = [];
     renderFirstVisitList();
-    renderReturningVisitList();
-    updateVisitorTabBadges();
     return;
   }
 
@@ -2123,11 +2068,8 @@ function loadSavedReportIfExists() {
   const savedDetails = Array.isArray(report.visitorDetails) && report.visitorDetails.length > 0
     ? report.visitorDetails
     : (Array.isArray(report.visitorNames) ? report.visitorNames.map((n) => ({ name: n, how: "", address: "", phone: "", visitType: "first" })) : []);
-  currentFirstVisits = savedDetails.filter((v) => v.visitType !== "returning").map((v) => ({ name: String(v.name || ""), how: String(v.how || ""), address: String(v.address || ""), phone: String(v.phone || "") }));
-  currentReturningVisits = savedDetails.filter((v) => v.visitType === "returning").map((v) => ({ name: String(v.name || ""), how: String(v.how || ""), address: String(v.address || ""), phone: String(v.phone || "") }));
+  currentFirstVisits = savedDetails.map((v) => ({ name: String(v.name || ""), how: String(v.how || ""), address: String(v.address || ""), phone: String(v.phone || "") }));
   renderFirstVisitList();
-  renderReturningVisitList();
-  updateVisitorTabBadges();
   currentImages = Array.isArray(report.images) ? report.images.slice() : [];
   renderImagesList();
   state.lastReportId = report.id;
@@ -2200,7 +2142,7 @@ function applyReportMode() {
     imagesSection.hidden = readOnly || !hasPermission("submitReports");
   }
 
-  document.querySelectorAll(".visitor-first-check, .visitor-returning-check").forEach((cb) => {
+  document.querySelectorAll(".visitor-first-check").forEach((cb) => {
     cb.disabled = readOnly || !hasPermission("submitReports");
   });
 }
@@ -3829,63 +3771,6 @@ function renderFirstVisitList() {
         </div>
       </div>
     </div>`;
-}
-
-function renderReturningVisitList() {
-  const panel = document.getElementById("visitor-panel-returning");
-  if (!panel) return;
-  const cutoff = Date.now() - 45 * 24 * 60 * 60 * 1000;
-  const all = loadVisitantesPub().filter((v) => {
-    if (!v.registeredAt) return true;
-    return new Date(v.registeredAt).getTime() > cutoff;
-  });
-  if (all.length === 0) {
-    panel.innerHTML = '<p class="visitor-empty-note">Nenhum visitante cadastrado nos últimos 45 dias.</p>';
-    return;
-  }
-  const allChecked = all.every((v) => currentReturningVisits.some((r) => r.name === v.name));
-  panel.innerHTML =
-    `<div class="visitor-mark-row">
-      <button type="button" class="ghost-btn small-btn visitor-returning-mark-all">${allChecked ? "Limpar todos" : "Marcar todos"}</button>
-    </div>` +
-    '<div class="visitor-check-list">' + all.map((v) => {
-      const checked = currentReturningVisits.some((r) => r.name === v.name);
-      return `<label class="visitor-check-item${checked ? " checked" : ""}">
-        <input type="checkbox" class="visitor-returning-check"
-          data-name="${escapeHtml(v.name)}"
-          data-how="${escapeHtml(v.how || "")}"
-          data-phone="${escapeHtml(v.phone || "")}"
-          ${checked ? "checked" : ""}/>
-        <div class="visitor-check-info">
-          <span class="visitor-check-name">${escapeHtml(v.name)}</span>
-          ${v.phone ? `<span class="visitor-check-meta">📞 ${escapeHtml(v.phone)}</span>` : ""}
-          ${v.address ? `<span class="visitor-check-meta">📍 ${escapeHtml(v.address)}</span>` : ""}
-        </div>
-      </label>`;
-    }).join("") + '</div>';
-}
-
-function getPastVisitorNames(cellId) {
-  if (!cellId) return [];
-  // Collect names that appeared in previous reports for this cell
-  const pastNames = new Set();
-  for (const r of (state.reports || []).filter((r) => r.cellId === cellId)) {
-    for (const v of (r.visitorDetails || [])) {
-      if (v.name) pastNames.add(v.name.trim().toLowerCase());
-    }
-    for (const name of (r.visitorNames || [])) {
-      if (name) pastNames.add(name.trim().toLowerCase());
-    }
-  }
-  // Return only visitantesPub entries whose names match — same source as "Primeira visita"
-  return loadVisitantesPub().filter((v) => v.name && pastNames.has(v.name.trim().toLowerCase()));
-}
-
-function updateVisitorTabBadges() {
-  const firstBadge = document.getElementById("first-visit-badge");
-  const returningBadge = document.getElementById("returning-visit-badge");
-  if (firstBadge) firstBadge.textContent = currentFirstVisits.length > 0 ? String(currentFirstVisits.length) : "";
-  if (returningBadge) returningBadge.textContent = currentReturningVisits.length > 0 ? String(currentReturningVisits.length) : "";
 }
 
 function cleanupOldVisitantes() {
