@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260316b" />
+    <link rel="stylesheet" href="styles.css?v=20260316c" />
   </head>
   <body>
     <!-- Tela de carregamento inicial -->
@@ -602,7 +602,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-16-b");
+            const registration = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-16-c");
             await registration.update();
 
             if (registration.waiting) {

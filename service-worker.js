@@ -1,4 +1,4 @@
-const CACHE_NAME = "renovo-static-v18";
+const CACHE_NAME = "renovo-static-v19";
 const APP_SHELL = [
   "./",
   "./index.html",

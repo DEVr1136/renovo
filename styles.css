@@ -2455,4 +2455,68 @@ button:hover {
   }
 }
 
+@media (max-width: 700px) {
+  #report-modal {
+    padding: 0;
+    justify-content: stretch;
+    align-items: flex-end;
+  }
+
+  #report-modal .modal-card {
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
+    margin: 0;
+    border-radius: 1.35rem 1.35rem 0 0;
+    padding-top: 1rem;
+    padding-right: max(0.9rem, env(safe-area-inset-right));
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    padding-left: max(0.9rem, env(safe-area-inset-left));
+  }
+
+  #report-modal .modal-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  #report-modal .modal-head > div,
+  #report-modal .report-grid,
+  #report-modal .report-form,
+  #report-modal .report-output-box,
+  #report-modal label,
+  #report-modal .attendance-box,
+  #report-modal .visitors-section,
+  #report-modal .images-section {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #report-modal .modal-head .panel-sub,
+  #report-modal #report-mode-note,
+  #report-modal label,
+  #report-modal .inline-check-label {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  #report-modal .modal-close {
+    justify-self: start;
+    width: auto;
+  }
+
+  #report-modal input,
+  #report-modal select,
+  #report-modal textarea,
+  #report-modal button,
+  #report-modal canvas {
+    max-width: 100%;
+  }
+
+  #report-modal #report-output {
+    min-height: 240px;
+  }
+}
+
 
