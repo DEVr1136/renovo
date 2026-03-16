@@ -1027,7 +1027,7 @@ function bindAppEvents() {
       address: String(formData.get("address") || "").trim(),
       newVisitorsCount: currentFirstVisits.length,
       returningVisitorsCount: 0,
-      hadCommunion: formData.get("hadCommunion") === "on",
+      communionMinutes: parseNonNegativeInt(formData.get("communionMinutes")),
       presentMemberIds: Array.from(new Set(formData.getAll("presentMemberIds").map((value) => String(value)))),
       visitorsCount: visitorsCountInput,
       visitorNames,
@@ -2099,8 +2099,7 @@ function loadSavedReportIfExists() {
   setFormFieldValue(reportForm, "host", report.host);
   setFormFieldValue(reportForm, "address", report.address);
   setFormFieldValue(reportForm, "visits", report.visits);
-  const hadCommunionField = reportForm.elements.namedItem("hadCommunion");
-  if (hadCommunionField && "checked" in hadCommunionField) hadCommunionField.checked = Boolean(report.hadCommunion);
+  setFormFieldValue(reportForm, "communionMinutes", report.communionMinutes ? String(report.communionMinutes) : "");
   const savedDetails = Array.isArray(report.visitorDetails) && report.visitorDetails.length > 0
     ? report.visitorDetails
     : (Array.isArray(report.visitorNames) ? report.visitorNames.map((n) => ({ name: n, how: "", address: "", phone: "", visitType: "first" })) : []);
@@ -2134,7 +2133,7 @@ function applyReportMode() {
     "address",
     "visitorsCount",
     "visitorNames",
-    "hadCommunion",
+    "communionMinutes",
   ];
 
   reportForm?.classList.toggle("readonly", readOnly);
@@ -2610,7 +2609,7 @@ ${ICONS.summary} RESUMO GERAL
 ${ICONS.people} Total de membros: ${members.length}
 ${ICONS.present} Presentes: ${presentMembers.length}
 ${ICONS.visitors} Visitantes: ${report.visitorsCount}
-${ICONS.totalPeople} Total de pessoas: ${totalPeople}${report.hadCommunion ? "\n🍞 Comunhao: Sim" : ""}${(report.newVisitorsCount || 0) > 0 ? `\n🆕 Visitantes novos: ${report.newVisitorsCount}` : ""}${(report.returningVisitorsCount || 0) > 0 ? `\n🔄 Visitantes retornaram: ${report.returningVisitorsCount}` : ""}
+${ICONS.totalPeople} Total de pessoas: ${totalPeople}${report.communionMinutes > 0 ? `\n🍞 Tempo de comunhao: ${report.communionMinutes} min` : ""}${(report.newVisitorsCount || 0) > 0 ? `\n🆕 Visitantes novos: ${report.newVisitorsCount}` : ""}${(report.returningVisitorsCount || 0) > 0 ? `\n🔄 Visitantes retornaram: ${report.returningVisitorsCount}` : ""}
 `;
 }
 
@@ -2992,7 +2991,9 @@ function normalizeReport(report) {
     address: String(report.address || "").trim(),
     newVisitorsCount: parseNonNegativeInt(report.newVisitorsCount),
     returningVisitorsCount: parseNonNegativeInt(report.returningVisitorsCount),
-    hadCommunion: Boolean(report.hadCommunion),
+    communionMinutes:
+      parseNonNegativeInt(report.communionMinutes) ||
+      (Boolean(report.hadCommunion) ? 15 : 0),
     images: Array.isArray(report.images) ? report.images.filter((s) => typeof s === "string" && s.startsWith("data:")) : [],
     createdAt: report.createdAt || new Date().toISOString(),
     updatedAt: report.updatedAt || null,
@@ -4053,7 +4054,7 @@ function computeHealthIndex(report, cell) {
   const members = Array.isArray(cell?.members) ? cell.members.length : 0;
   const present = Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0;
   if (members > 0 && present / members >= 0.7) score += 2;
-  if (report.hadCommunion) score += 1;
+  if (parseNonNegativeInt(report.communionMinutes) > 0) score += 1;
   return Math.min(score, 8);
 }
 
