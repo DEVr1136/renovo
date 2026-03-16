@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" href="icon.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260316c" />
+    <link rel="stylesheet" href="styles.css?v=20260316d" />
     <style>
       .install-page {
         max-width: 400px;
@@ -93,7 +93,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const reg = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-16-c");
+            const reg = await navigator.serviceWorker.register("./service-worker.js?v=2026-03-16-d");
             await reg.update();
             if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
             reg.addEventListener("updatefound", () => {
