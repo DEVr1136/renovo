@@ -1332,6 +1332,7 @@ async function bootstrapApp() {
   ensureDefaultUsers();
   try { runInitialSeedOnce(); } catch (e) { console.warn("[seed] erro:", e); }
   try { ensureMinistryStructure(); } catch (e) { console.warn("[structure] erro:", e); }
+  try { syncAbsenceAlertsWithReports(state); } catch (e) { console.warn("[alerts] erro:", e); }
   session = loadSession();
   hideLoadingScreen();
   initializeApp();
@@ -3175,6 +3176,8 @@ function saveState(nextState) {
   });
   state.updatedAt = stampedState.updatedAt;
 
+  syncAbsenceAlertsWithReports(stampedState);
+
   // Salva imagens e PDFs separadamente (não cabem no localStorage principal nem no Firestore)
   try {
     const imgStore = {};
@@ -4423,45 +4426,62 @@ function computeHealthLabel(score) {
   return { label: "Em crescimento", tone: "ok" };
 }
 
-function processAbsenceAlerts(_report, cell) {
-  if (!cell || !Array.isArray(cell.members) || !cell.members.length) return;
+function syncAbsenceAlertsWithReports(snapshot) {
+  const cells = Array.isArray(snapshot?.cells) ? snapshot.cells : [];
+  const reports = Array.isArray(snapshot?.reports) ? snapshot.reports : [];
   const alerts = loadAlerts();
-  const cellReports = state.reports
-    .filter((r) => r.cellId === cell.id)
-    .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date));
-  for (const member of cell.members) {
-    let consecutive = 0;
-    for (const r of cellReports) {
-      if (new Set(r.presentMemberIds).has(member.id)) break;
-      consecutive++;
+  const nextAlerts = [];
+
+  for (const cell of cells) {
+    if (!cell || !Array.isArray(cell.members) || !cell.members.length) {
+      continue;
     }
-    const existingIdx = alerts.findIndex(
-      (a) => a.memberId === member.id && a.cellId === cell.id && a.status !== "resolved"
-    );
-    if (consecutive >= 3) {
-      if (existingIdx === -1) {
-        alerts.push({
-          id: createId(),
-          cellId: cell.id,
-          cellName: cell.name,
-          memberId: member.id,
-          memberName: member.name,
-          consecutiveAbsences: consecutive,
-          status: "pending",
-          observation: "",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        alerts[existingIdx].consecutiveAbsences = consecutive;
-        alerts[existingIdx].updatedAt = new Date().toISOString();
+
+    const cellReports = reports
+      .filter((report) => report.cellId === cell.id)
+      .sort((a, b) => parseReportDateToTime(b.date) - parseReportDateToTime(a.date));
+
+    if (!cellReports.length) {
+      continue;
+    }
+
+    for (const member of cell.members) {
+      let consecutive = 0;
+      for (const report of cellReports) {
+        if (new Set(report.presentMemberIds).has(member.id)) {
+          break;
+        }
+        consecutive++;
       }
-    } else if (consecutive === 0 && existingIdx !== -1) {
-      alerts[existingIdx].status = "resolved";
-      alerts[existingIdx].updatedAt = new Date().toISOString();
+
+      if (consecutive < 3) {
+        continue;
+      }
+
+      const activeAlert = alerts.find(
+        (alert) => alert.memberId === member.id && alert.cellId === cell.id && alert.status !== "resolved"
+      );
+
+      nextAlerts.push({
+        id: activeAlert?.id || createId(),
+        cellId: cell.id,
+        cellName: cell.name,
+        memberId: member.id,
+        memberName: member.name,
+        consecutiveAbsences: consecutive,
+        status: activeAlert?.status || "pending",
+        observation: activeAlert?.observation || "",
+        createdAt: activeAlert?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
   }
-  saveAlerts(alerts);
+
+  saveAlerts(nextAlerts);
+}
+
+function processAbsenceAlerts() {
+  syncAbsenceAlertsWithReports(state);
 }
 
 function handleAlertAction(alertId, status, observation) {
