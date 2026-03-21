@@ -678,113 +678,131 @@ function bindAppEvents() {
     const nextStudyId = studyId || editingStudy?.id || createId();
     const hasExistingPdf = Boolean(editingStudy?.pdfUrl || editingStudy?.pdfDataUrl || editingStudy?.hasEmbeddedPdf);
     const hasNewFile = pdfFile instanceof File && pdfFile.size > 0;
+    const originalStudyButtonLabel = saveStudyButton?.textContent || "Publicar estudo";
 
-    if (!hasNewFile && !pdfUrl && !hasExistingPdf) {
-      setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
-      return;
-    }
-
-    let nextPdfUrl = pdfUrl || String(editingStudy?.pdfUrl || "").trim();
-    let pdfDataUrl = editingStudy?.pdfDataUrl || "";
-    let hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
-    let storagePath = String(editingStudy?.storagePath || "").trim();
-    let usedLocalFallback = false;
-
-    if (hasNewFile) {
-      if (pdfFile.type && pdfFile.type !== "application/pdf") {
-        setStudyFeedback("Envie apenas arquivo PDF.");
+    try {
+      if (!hasNewFile && !pdfUrl && !hasExistingPdf) {
+        setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
         return;
       }
 
-      try {
-        if (typeof window.fsUploadStudyPdf === "function") {
-          const uploadResult = await window.fsUploadStudyPdf(pdfFile, nextStudyId);
-          nextPdfUrl = String(uploadResult?.pdfUrl || "").trim();
-          storagePath = String(uploadResult?.storagePath || "").trim();
-          pdfDataUrl = "";
-          hasEmbeddedPdf = false;
-        } else {
-          throw new Error("storage_unavailable");
-        }
-      } catch (error) {
-        const uploadReason = String(error?.message || "falha no envio online");
-        if (pdfFile.size > 1_800_000) {
-          setStudyFeedback(`${uploadReason} O PDF tambem e grande demais para salvar localmente. Use um link de PDF ou um arquivo menor.`);
+      let nextPdfUrl = pdfUrl || String(editingStudy?.pdfUrl || "").trim();
+      let pdfDataUrl = editingStudy?.pdfDataUrl || "";
+      let hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
+      let storagePath = String(editingStudy?.storagePath || "").trim();
+      let usedLocalFallback = false;
+
+      if (hasNewFile) {
+        if (pdfFile.type && pdfFile.type !== "application/pdf") {
+          setStudyFeedback("Envie apenas arquivo PDF.");
           return;
         }
 
         try {
-          pdfDataUrl = await readFileAsDataUrl(pdfFile);
-          nextPdfUrl = "";
-          storagePath = "";
-          hasEmbeddedPdf = true;
-          usedLocalFallback = true;
-        } catch {
-          setStudyFeedback("Erro ao processar o arquivo PDF.");
-          return;
+          if (saveStudyButton) {
+            saveStudyButton.disabled = true;
+            saveStudyButton.textContent = "Enviando PDF...";
+          }
+          setStudyFeedback("Enviando PDF...");
+          if (typeof window.fsUploadStudyPdf === "function") {
+            const uploadResult = await Promise.race([
+              window.fsUploadStudyPdf(pdfFile, nextStudyId),
+              new Promise((_, reject) =>
+                window.setTimeout(() => reject(new Error("Tempo excedido ao enviar PDF. Verifique a internet ou as regras do Firebase Storage.")), 20000)
+              ),
+            ]);
+            nextPdfUrl = String(uploadResult?.pdfUrl || "").trim();
+            storagePath = String(uploadResult?.storagePath || "").trim();
+            pdfDataUrl = "";
+            hasEmbeddedPdf = false;
+          } else {
+            throw new Error("storage_unavailable");
+          }
+        } catch (error) {
+          const uploadReason = String(error?.message || "falha no envio online");
+          if (pdfFile.size > 1_800_000) {
+            setStudyFeedback(`${uploadReason} O PDF tambem e grande demais para salvar localmente. Use um link de PDF ou um arquivo menor.`);
+            return;
+          }
+
+          try {
+            pdfDataUrl = await readFileAsDataUrl(pdfFile);
+            nextPdfUrl = "";
+            storagePath = "";
+            hasEmbeddedPdf = true;
+            usedLocalFallback = true;
+          } catch {
+            setStudyFeedback("Erro ao processar o arquivo PDF.");
+            return;
+          }
         }
+      } else if (pdfUrl) {
+        nextPdfUrl = pdfUrl;
+        pdfDataUrl = "";
+        hasEmbeddedPdf = false;
+        if (storagePath && typeof window.fsDeleteStudyPdf === "function") {
+          window.fsDeleteStudyPdf(storagePath).catch(() => {});
+        }
+        storagePath = "";
+      } else {
+        nextPdfUrl = String(editingStudy?.pdfUrl || "").trim();
+        storagePath = String(editingStudy?.storagePath || "").trim();
+        hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
       }
-    } else if (pdfUrl) {
-      nextPdfUrl = pdfUrl;
-      pdfDataUrl = "";
-      hasEmbeddedPdf = false;
-      if (storagePath && typeof window.fsDeleteStudyPdf === "function") {
-        window.fsDeleteStudyPdf(storagePath).catch(() => {});
+
+      if (!nextPdfUrl && !pdfDataUrl && !hasEmbeddedPdf) {
+        setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
+        return;
       }
-      storagePath = "";
-    } else {
-      nextPdfUrl = String(editingStudy?.pdfUrl || "").trim();
-      storagePath = String(editingStudy?.storagePath || "").trim();
-      hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
-    }
 
-    if (!nextPdfUrl && !pdfDataUrl && !hasEmbeddedPdf) {
-      setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
-      return;
-    }
+      if (hasNewFile && editingStudy?.storagePath && editingStudy.storagePath !== storagePath && typeof window.fsDeleteStudyPdf === "function") {
+        window.fsDeleteStudyPdf(editingStudy.storagePath).catch(() => {});
+      }
 
-    if (hasNewFile && editingStudy?.storagePath && editingStudy.storagePath !== storagePath && typeof window.fsDeleteStudyPdf === "function") {
-      window.fsDeleteStudyPdf(editingStudy.storagePath).catch(() => {});
-    }
+      if (studyId && editingStudy) {
+        editingStudy.title = title;
+        editingStudy.description = description;
+        editingStudy.pdfUrl = nextPdfUrl;
+        editingStudy.pdfDataUrl = pdfDataUrl;
+        editingStudy.hasEmbeddedPdf = hasEmbeddedPdf;
+        editingStudy.storagePath = storagePath;
+        editingStudy.updatedAt = new Date().toISOString();
+        editingStudy.updatedBy = session?.name || session?.username || "Sistema";
+        setStudyFeedback(
+          usedLocalFallback
+            ? "Estudo atualizado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
+            : "Estudo atualizado."
+        );
+      } else {
+        state.studies.unshift({
+          id: nextStudyId,
+          title,
+          description,
+          pdfUrl: nextPdfUrl,
+          pdfDataUrl,
+          hasEmbeddedPdf,
+          storagePath,
+          createdAt: new Date().toISOString(),
+          createdBy: session?.name || session?.username || "Sistema",
+          updatedAt: null,
+          updatedBy: null,
+        });
+        setStudyFeedback(
+          usedLocalFallback
+            ? "Estudo publicado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
+            : "Estudo publicado."
+        );
+      }
 
-    if (studyId && editingStudy) {
-      editingStudy.title = title;
-      editingStudy.description = description;
-      editingStudy.pdfUrl = nextPdfUrl;
-      editingStudy.pdfDataUrl = pdfDataUrl;
-      editingStudy.hasEmbeddedPdf = hasEmbeddedPdf;
-      editingStudy.storagePath = storagePath;
-      editingStudy.updatedAt = new Date().toISOString();
-      editingStudy.updatedBy = session?.name || session?.username || "Sistema";
-      setStudyFeedback(
-        usedLocalFallback
-          ? "Estudo atualizado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
-          : "Estudo atualizado."
-      );
-    } else {
-      state.studies.unshift({
-        id: nextStudyId,
-        title,
-        description,
-        pdfUrl: nextPdfUrl,
-        pdfDataUrl,
-        hasEmbeddedPdf,
-        storagePath,
-        createdAt: new Date().toISOString(),
-        createdBy: session?.name || session?.username || "Sistema",
-        updatedAt: null,
-        updatedBy: null,
-      });
-      setStudyFeedback(
-        usedLocalFallback
-          ? "Estudo publicado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
-          : "Estudo publicado."
-      );
+      persistAndRender();
+      renderStudies();
+      resetStudyForm();
+    } finally {
+      if (saveStudyButton) {
+        saveStudyButton.disabled = false;
+        saveStudyButton.textContent = originalStudyButtonLabel;
+      }
     }
-
-    persistAndRender();
-    renderStudies();
-    resetStudyForm();
   });
 
   studiesList?.addEventListener("click", (event) => {
