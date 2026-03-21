@@ -708,6 +708,7 @@ function bindAppEvents() {
       editingStudy.description = description;
       editingStudy.pdfUrl = pdfUrl;
       editingStudy.pdfDataUrl = pdfDataUrl;
+      editingStudy.hasEmbeddedPdf = Boolean(pdfDataUrl);
       editingStudy.updatedAt = new Date().toISOString();
       editingStudy.updatedBy = session?.name || session?.username || "Sistema";
       setStudyFeedback("Estudo atualizado.");
@@ -718,6 +719,7 @@ function bindAppEvents() {
         description,
         pdfUrl,
         pdfDataUrl,
+        hasEmbeddedPdf: Boolean(pdfDataUrl),
         createdAt: new Date().toISOString(),
         createdBy: session?.name || session?.username || "Sistema",
         updatedAt: null,
@@ -2030,7 +2032,7 @@ function renderStudies() {
 
   studiesList.innerHTML = studies
     .map((study) => {
-      const canOpen = Boolean(study.pdfUrl || study.pdfDataUrl);
+      const canOpen = Boolean(study.pdfUrl || study.pdfDataUrl || study.hasEmbeddedPdf);
       const description = study.description
         ? `<p class="study-item-desc">${escapeHtml(study.description)}</p>`
         : "";
@@ -2085,7 +2087,11 @@ function openStudyPdf(study) {
   }
 
   if (!target) {
-    setStudyFeedback("Este estudo nao possui PDF disponivel.");
+    setStudyFeedback(
+      study?.hasEmbeddedPdf
+        ? "Este PDF foi enviado como arquivo e nao esta disponivel neste dispositivo. Publique por link para compartilhar com todos."
+        : "Este estudo nao possui PDF disponivel."
+    );
     return;
   }
 
@@ -3358,7 +3364,13 @@ function loadState() {
       return {
         cells,
         reports: reports.map((r) => Object.assign({}, r, { images: imgStore[r.id] || r.images || [] })),
-        studies: studies.map((s) => Object.assign({}, s, { pdfDataUrl: pdfStore[s.id] || s.pdfDataUrl || "" })),
+        studies: studies.map((s) => {
+          const restoredPdf = pdfStore[s.id] || s.pdfDataUrl || "";
+          return Object.assign({}, s, {
+            pdfDataUrl: restoredPdf,
+            hasEmbeddedPdf: Boolean(restoredPdf || s.hasEmbeddedPdf),
+          });
+        }),
         lastReportId,
         updatedAt,
       };
@@ -3425,7 +3437,12 @@ function stripStateForStorage(nextState) {
   return {
     cells: nextState.cells,
     reports: (nextState.reports || []).map((r) => Object.assign({}, r, { images: [] })),
-    studies: (nextState.studies || []).map((s) => Object.assign({}, s, { pdfDataUrl: "" })),
+    studies: (nextState.studies || []).map((s) =>
+      Object.assign({}, s, {
+        pdfDataUrl: "",
+        hasEmbeddedPdf: Boolean(s.pdfDataUrl || s.hasEmbeddedPdf),
+      })
+    ),
     lastReportId: nextState.lastReportId,
     updatedAt: nextState.updatedAt || null,
   };
@@ -3444,7 +3461,13 @@ function hydrateStateSnapshot(raw) {
     return {
       cells,
       reports: reports.map((r) => Object.assign({}, r, { images: imgStore[r.id] || [] })),
-      studies: studies.map((s) => Object.assign({}, s, { pdfDataUrl: pdfStore[s.id] || "" })),
+      studies: studies.map((s) => {
+        const restoredPdf = pdfStore[s.id] || "";
+        return Object.assign({}, s, {
+          pdfDataUrl: restoredPdf,
+          hasEmbeddedPdf: Boolean(restoredPdf || s.hasEmbeddedPdf),
+        });
+      }),
       lastReportId,
       updatedAt,
     };
@@ -3538,8 +3561,9 @@ function normalizeStudy(study) {
     typeof study.pdfDataUrl === "string" && study.pdfDataUrl.startsWith("data:application/pdf")
       ? study.pdfDataUrl
       : "";
+  const hasEmbeddedPdf = study.hasEmbeddedPdf === true || Boolean(pdfDataUrl);
 
-  if (!title || (!pdfUrl && !pdfDataUrl)) {
+  if (!title || (!pdfUrl && !pdfDataUrl && !hasEmbeddedPdf)) {
     return null;
   }
 
@@ -3549,6 +3573,7 @@ function normalizeStudy(study) {
     description,
     pdfUrl,
     pdfDataUrl,
+    hasEmbeddedPdf,
     createdAt: study.createdAt || new Date().toISOString(),
     createdBy: String(study.createdBy || "").trim(),
     updatedAt: study.updatedAt || null,
