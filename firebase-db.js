@@ -122,9 +122,20 @@
     const fileName = sanitizeFileName(file?.name);
     const storagePath = `studies/${safeStudyId}/${Date.now()}-${fileName}`;
     const ref = storage.ref().child(storagePath);
-    await ref.put(file, { contentType: "application/pdf" });
-    const pdfUrl = await ref.getDownloadURL();
-    return { pdfUrl, storagePath };
+    try {
+      await ref.put(file, { contentType: "application/pdf" });
+      const pdfUrl = await ref.getDownloadURL();
+      return { pdfUrl, storagePath };
+    } catch (error) {
+      const code = String(error?.code || "");
+      if (code.includes("unauthorized")) {
+        throw new Error("Sem permissao no Firebase Storage para enviar PDF.");
+      }
+      if (code.includes("canceled")) {
+        throw new Error("Envio do PDF cancelado.");
+      }
+      throw new Error(error?.message || "Falha ao enviar PDF para o Firebase Storage.");
+    }
   };
 
   window.fsDeleteStudyPdf = async function (storagePath) {

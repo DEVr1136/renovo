@@ -706,9 +706,10 @@ function bindAppEvents() {
         } else {
           throw new Error("storage_unavailable");
         }
-      } catch {
+      } catch (error) {
+        const uploadReason = String(error?.message || "falha no envio online");
         if (pdfFile.size > 1_800_000) {
-          setStudyFeedback("Falha no envio online e o PDF e grande demais para salvar localmente. Use um link ou um arquivo menor.");
+          setStudyFeedback(`${uploadReason} O PDF tambem e grande demais para salvar localmente. Use um link de PDF ou um arquivo menor.`);
           return;
         }
 
@@ -757,7 +758,7 @@ function bindAppEvents() {
       editingStudy.updatedBy = session?.name || session?.username || "Sistema";
       setStudyFeedback(
         usedLocalFallback
-          ? "Estudo atualizado apenas neste dispositivo. Para compartilhar com todos, use um link de PDF."
+          ? "Estudo atualizado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
           : "Estudo atualizado."
       );
     } else {
@@ -776,7 +777,7 @@ function bindAppEvents() {
       });
       setStudyFeedback(
         usedLocalFallback
-          ? "Estudo publicado apenas neste dispositivo. Para compartilhar com todos, use um link de PDF."
+          ? "Estudo publicado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
           : "Estudo publicado."
       );
     }
