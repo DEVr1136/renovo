@@ -1,8 +1,9 @@
-const APP_VERSION = "2026-03-21-k";
+const APP_VERSION = "2026-03-21-j";
 const CACHE_NAME = "renovo-static-" + APP_VERSION;
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./instalar.html",
   "./visitantes.html",
   "./app-version.js",
   "./styles.css",

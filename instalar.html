@@ -3,56 +3,106 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Redirecionando - Renovo</title>
-    <meta http-equiv="refresh" content="0; url=./" />
+    <title>Instalar App - Renovo</title>
+    <meta name="theme-color" content="#8b0d12" />
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <script src="app-version.js"></script>
+    <link rel="stylesheet" href="styles.css" />
     <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 1.5rem;
-        font-family: "Segoe UI", sans-serif;
-        background: #f7efeb;
-        color: #2d1f1d;
-      }
-
-      main {
-        width: min(420px, 100%);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        background: rgba(255, 250, 247, 0.94);
-        border: 1px solid rgba(139, 13, 18, 0.12);
-        box-shadow: 0 18px 48px rgba(77, 24, 20, 0.12);
+      .install-page {
+        max-width: 400px;
+        margin: 8vh auto 4rem;
+        padding: 0 1.2rem;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
       }
-
-      h1 {
-        margin: 0 0 0.75rem;
-        font-size: 1.25rem;
+      .install-logo { width: 72px; height: 72px; border-radius: 1rem; }
+      .install-title { font-family: "Fraunces", Georgia, serif; font-size: 1.6rem; margin: 0; color: var(--ink); }
+      .install-subtitle { color: var(--ink-soft); margin: 0; font-size: 0.95rem; }
+      .install-btn {
+        background: var(--brand); color: #fff; border: none;
+        border-radius: 0.6rem; padding: 0.75rem 2rem;
+        font-size: 1rem; font-family: inherit; font-weight: 600;
+        cursor: pointer; width: 100%; max-width: 280px;
+        transition: background 0.18s;
       }
-
-      p {
-        margin: 0;
-        line-height: 1.6;
+      .install-btn:hover { background: var(--brand-strong); }
+      .install-steps {
+        width: 100%;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 0.9rem;
+        padding: 1rem 1.2rem;
+        text-align: left;
       }
-
-      a {
-        color: #8b0d12;
-        font-weight: 700;
+      .install-steps h3 { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; }
+      .install-steps ol { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.35rem; }
+      .install-steps li { font-size: 0.9rem; color: var(--ink); }
+      .install-open-btn {
+        display: block; width: 100%; max-width: 280px;
+        background: transparent; border: 1.5px solid var(--brand);
+        color: var(--brand); border-radius: 0.6rem; padding: 0.7rem 2rem;
+        font-size: 0.95rem; font-family: inherit; font-weight: 600;
+        cursor: pointer; text-decoration: none; text-align: center;
+        transition: background 0.15s, color 0.15s;
       }
+      .install-open-btn:hover { background: var(--brand); color: #fff; }
     </style>
-    <script>
-      window.location.replace("./");
-    </script>
   </head>
   <body>
-    <main>
-      <h1>Redirecionando para o link oficial</h1>
-      <p>
-        Se a pagina nao abrir automaticamente,
-        <a href="./">toque aqui para abrir o Ambiente Digital Renovo</a>.
-      </p>
+    <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
+
+    <main class="install-page">
+      <img src="icon.png" alt="Logo Renovo" class="install-logo" />
+      <p class="eyebrow">Igreja Renovo</p>
+      <h1 class="install-title">Ambiente de Células</h1>
+      <p class="install-subtitle">Instale o app no seu celular para acesso rápido.</p>
+
+      <!-- Botão automático (Android/Chrome) -->
+      <button type="button" class="install-btn" data-install-app hidden>
+        Instalar aplicativo
+      </button>
+
+      <!-- Instruções iPhone -->
+      <div class="install-steps" id="ios-steps" hidden>
+        <h3>iPhone / Safari</h3>
+        <ol>
+          <li>Toque em <strong>Compartilhar</strong> (ícone de caixa com seta)</li>
+          <li>Toque em <strong>"Adicionar à Tela de Início"</strong></li>
+          <li>Toque em <strong>Adicionar</strong></li>
+        </ol>
+      </div>
+
+      <a href="./" class="install-open-btn">Abrir no navegador</a>
     </main>
+
+    <script src="pwa-install.js"></script>
+    <script>
+      // Mostra instruções para iPhone
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+      const isInStandaloneMode = window.navigator.standalone;
+      if (isIOS && !isInStandaloneMode) {
+        document.getElementById("ios-steps").hidden = false;
+      }
+
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+          try {
+            const swUrl = "./service-worker.js?v=" + encodeURIComponent(window.RENOVO_APP_VERSION || "dev");
+            const reg = await navigator.serviceWorker.register(swUrl);
+            reg.update().catch(() => {});
+            window.setTimeout(() => {
+              reg.update().catch(() => {});
+            }, 4000);
+          } catch (_) {}
+        });
+      }
+    </script>
   </body>
 </html>
