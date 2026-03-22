@@ -1511,10 +1511,10 @@ function ensureMinistryStructure() {
   ];
 
   const supervisorDefs = [
-    { name: "Eudoxia (Neta)", username: "irma.neta", scopeCellNames: ["Amarela", "Rosa", "Cinza", "Preta", "GET"] },
+    { name: "Eudoxia (Neta)", username: "irma.neta", scopeCellNames: ["Amarela", "Rosa", "Cinza", "Preta", "GET", "Logos"] },
     { name: "Anélia", username: "anelia", scopeCellNames: ["Branca", "Laranja", "Visão de Águia"] },
-    { name: "Elvis", username: "elvis", scopeCellNames: ["Lilás", "Vinho", "Azul", "Logos"] },
-    { name: "Adlaine", username: "adelaine", scopeCellNames: ["Lilás", "Vinho", "Azul", "Logos"] },
+    { name: "Elvis", username: "elvis", scopeCellNames: ["Lilás", "Vinho", "Azul"] },
+    { name: "Adlaine", username: "adelaine", scopeCellNames: ["Lilás", "Vinho", "Azul"] },
     { name: "Bruno", username: "bruno", scopeCellNames: ["Vermelha", "Verde", "Ekballo", "Peregrinos"] },
     { name: "Kamila", username: "kamila", scopeCellNames: ["Vermelha", "Verde", "Ekballo", "Peregrinos"] },
   ];
