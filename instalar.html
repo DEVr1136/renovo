@@ -52,6 +52,14 @@
         transition: background 0.15s, color 0.15s;
       }
       .install-open-btn:hover { background: var(--brand); color: #fff; }
+      .qr-wrap {
+        display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+        background: var(--surface); border: 1px solid var(--line);
+        border-radius: 0.9rem; padding: 1.2rem;
+        width: 100%;
+      }
+      .qr-wrap p { font-size: 0.85rem; color: var(--ink-soft); margin: 0; }
+      #qr-canvas { border-radius: 0.5rem; }
     </style>
   </head>
   <body>
@@ -80,9 +88,30 @@
       </div>
 
       <a href="./" class="install-open-btn">Abrir no navegador</a>
+
+      <div class="qr-wrap">
+        <p>Escaneie para instalar no celular</p>
+        <canvas id="qr-canvas"></canvas>
+        <p style="font-size:0.75rem;word-break:break-all;color:var(--ink-soft)">devr1136.github.io/renovo/instalar.html</p>
+      </div>
     </main>
 
     <script src="pwa-install.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+      (function () {
+        const canvas = document.getElementById("qr-canvas");
+        const url = "https://devr1136.github.io/renovo/instalar.html";
+        new QRCode(canvas, {
+          text: url,
+          width: 180,
+          height: 180,
+          colorDark: "#241a19",
+          colorLight: "#fffaf8",
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      })();
+    </script>
     <script>
       // Mostra instruções para iPhone
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
