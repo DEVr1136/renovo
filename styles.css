@@ -2601,4 +2601,31 @@ button:hover {
   }
 }
 
+/* Botão flutuante de relatar erro */
+.bug-report-btn {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2rem;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(74,18,22,0.10);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bug-report-btn:hover {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+
 
