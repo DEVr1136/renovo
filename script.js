@@ -94,7 +94,6 @@ const accessBadge = document.getElementById("access-badge");
 const accessNote = document.getElementById("access-note");
 
 let hasAppliedInitialReportContext = false;
-let hasAutoOpenedLeaderReport = false;
 let currentFirstVisits = [];
 let currentImages = [];
 let prevCellIds = new Set();
@@ -158,6 +157,19 @@ try {
   }
 }
 
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode("renovo:" + password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function isPasswordHashed(str) {
+  return typeof str === "string" && /^[0-9a-f]{64}$/.test(str);
+}
+
 function bindAuthEvents() {
   toggleRegisterFormButton?.addEventListener("click", () => {
     registerForm.hidden = !registerForm.hidden;
@@ -177,15 +189,29 @@ function bindAuthEvents() {
     togglePasswordBtn.setAttribute("aria-label", showing ? "Mostrar senha" : "Ocultar senha");
   });
 
-  loginForm?.addEventListener("submit", (event) => {
+  loginForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(loginForm);
     const username = normalizeUsername(formData.get("username"));
     const password = String(formData.get("password") || "");
+    const hashedInput = await hashPassword(password);
 
-    const user = users.find(
-      (entry) => normalizeUsername(entry.username) === username && String(entry.password || "") === password
-    );
+    let user = null;
+    for (const entry of users) {
+      if (normalizeUsername(entry.username) !== username) continue;
+      const stored = String(entry.password || "");
+      if (isPasswordHashed(stored)) {
+        if (stored === hashedInput) { user = entry; break; }
+      } else {
+        if (stored === password) {
+          entry.password = hashedInput;
+          saveUsers(users);
+          if (window.fsSaveUsers) window.fsSaveUsers(users);
+          user = entry;
+          break;
+        }
+      }
+    }
 
     if (!user) {
       setAuthFeedback("Usuario ou senha invalidos.");
@@ -195,7 +221,6 @@ function bindAuthEvents() {
     session = buildSessionFromUser(user);
     saveSession(session);
     hasAppliedInitialReportContext = false;
-    hasAutoOpenedLeaderReport = false;
     ensureLeaderCellForSession();
     showHomeScreen();
     render();
@@ -206,7 +231,7 @@ function bindAuthEvents() {
     setAuthFeedback("");
   });
 
-  registerForm?.addEventListener("submit", (event) => {
+  registerForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(registerForm);
 
@@ -237,11 +262,12 @@ function bindAuthEvents() {
       return;
     }
 
+    const hashedPassword = await hashPassword(password);
     const newUser = {
       id: createId(),
       name,
       username,
-      password,
+      password: hashedPassword,
       role: role === "coordinator" ? "coordinator" : "leader",
       assignedCellName: role === "leader" ? assignedCellName : "",
       createdAt: new Date().toISOString(),
@@ -253,7 +279,6 @@ function bindAuthEvents() {
     session = buildSessionFromUser(newUser);
     saveSession(session);
     hasAppliedInitialReportContext = false;
-    hasAutoOpenedLeaderReport = false;
     ensureLeaderCellForSession();
     showHomeScreen();
     render();
@@ -267,7 +292,6 @@ function bindAuthEvents() {
     clearSession();
     closeAllModals();
     hasAppliedInitialReportContext = false;
-    hasAutoOpenedLeaderReport = false;
     showAuthScreen();
     loginForm.reset();
     if (registerForm) {
@@ -281,7 +305,6 @@ function bindAuthEvents() {
     session = null;
     clearSession();
     hasAppliedInitialReportContext = false;
-    hasAutoOpenedLeaderReport = false;
     showAuthScreen();
     loginForm.reset();
     setAuthFeedback("");
@@ -457,7 +480,7 @@ function bindAppEvents() {
     setAccessFeedback("");
   });
 
-  accessForm?.addEventListener("submit", (event) => {
+  accessForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!hasPermission("manageAccess")) {
       return;
@@ -539,7 +562,7 @@ function bindAppEvents() {
       existingUser.scopeCellNames = role === "coordinator" ? scopeCellNames : [];
       existingUser.updatedAt = new Date().toISOString();
       if (password) {
-        existingUser.password = password;
+        existingUser.password = await hashPassword(password);
       }
 
       saveUsers(users);
@@ -579,7 +602,7 @@ function bindAppEvents() {
       id: createId(),
       name,
       username,
-      password,
+      password: await hashPassword(password),
       role,
       assignedCellName: role === "leader" ? assignedCellName : "",
       scopeCellNames: role === "coordinator" ? scopeCellNames : [],
@@ -675,60 +698,134 @@ function bindAppEvents() {
     }
 
     const editingStudy = studyId ? state.studies.find((entry) => entry.id === studyId) : null;
-    const hasExistingPdf = Boolean(editingStudy?.pdfUrl || editingStudy?.pdfDataUrl);
+    const nextStudyId = studyId || editingStudy?.id || createId();
+    const hasExistingPdf = Boolean(editingStudy?.pdfUrl || editingStudy?.pdfDataUrl || editingStudy?.hasEmbeddedPdf);
     const hasNewFile = pdfFile instanceof File && pdfFile.size > 0;
+    const originalStudyButtonLabel = saveStudyButton?.textContent || "Publicar estudo";
 
-    if (!hasNewFile && !pdfUrl && !hasExistingPdf) {
-      setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
-      return;
-    }
-
-    let pdfDataUrl = editingStudy?.pdfDataUrl || "";
-    if (hasNewFile) {
-      if (pdfFile.type && pdfFile.type !== "application/pdf") {
-        setStudyFeedback("Envie apenas arquivo PDF.");
+    try {
+      if (!hasNewFile && !pdfUrl && !hasExistingPdf) {
+        setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
         return;
       }
 
-      if (pdfFile.size > 1_800_000) {
-        setStudyFeedback("PDF muito grande para salvar localmente. Use até 1,8 MB.");
+      let nextPdfUrl = pdfUrl || String(editingStudy?.pdfUrl || "").trim();
+      let pdfDataUrl = editingStudy?.pdfDataUrl || "";
+      let hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
+      let storagePath = String(editingStudy?.storagePath || "").trim();
+      let usedLocalFallback = false;
+
+      if (hasNewFile) {
+        if (pdfFile.type && pdfFile.type !== "application/pdf") {
+          setStudyFeedback("Envie apenas arquivo PDF.");
+          return;
+        }
+
+        try {
+          if (saveStudyButton) {
+            saveStudyButton.disabled = true;
+            saveStudyButton.textContent = "Enviando PDF...";
+          }
+          setStudyFeedback("Enviando PDF...");
+          if (typeof window.fsUploadStudyPdf === "function") {
+            const uploadResult = await Promise.race([
+              window.fsUploadStudyPdf(pdfFile, nextStudyId),
+              new Promise((_, reject) =>
+                window.setTimeout(() => reject(new Error("Tempo excedido ao enviar PDF. Verifique a internet ou as regras do Firebase Storage.")), 20000)
+              ),
+            ]);
+            nextPdfUrl = String(uploadResult?.pdfUrl || "").trim();
+            storagePath = String(uploadResult?.storagePath || "").trim();
+            pdfDataUrl = "";
+            hasEmbeddedPdf = false;
+          } else {
+            throw new Error("storage_unavailable");
+          }
+        } catch (error) {
+          const uploadReason = String(error?.message || "falha no envio online");
+          if (pdfFile.size > 1_800_000) {
+            setStudyFeedback(`${uploadReason} O PDF tambem e grande demais para salvar localmente. Use um link de PDF ou um arquivo menor.`);
+            return;
+          }
+
+          try {
+            pdfDataUrl = await readFileAsDataUrl(pdfFile);
+            nextPdfUrl = "";
+            storagePath = "";
+            hasEmbeddedPdf = true;
+            usedLocalFallback = true;
+          } catch {
+            setStudyFeedback("Erro ao processar o arquivo PDF.");
+            return;
+          }
+        }
+      } else if (pdfUrl) {
+        nextPdfUrl = pdfUrl;
+        pdfDataUrl = "";
+        hasEmbeddedPdf = false;
+        if (storagePath && typeof window.fsDeleteStudyPdf === "function") {
+          window.fsDeleteStudyPdf(storagePath).catch(() => {});
+        }
+        storagePath = "";
+      } else {
+        nextPdfUrl = String(editingStudy?.pdfUrl || "").trim();
+        storagePath = String(editingStudy?.storagePath || "").trim();
+        hasEmbeddedPdf = Boolean(pdfDataUrl || editingStudy?.hasEmbeddedPdf);
+      }
+
+      if (!nextPdfUrl && !pdfDataUrl && !hasEmbeddedPdf) {
+        setStudyFeedback("Informe um link de PDF ou envie um arquivo PDF.");
         return;
       }
 
-      try {
-        pdfDataUrl = await readFileAsDataUrl(pdfFile);
-      } catch {
-        setStudyFeedback("Erro ao ler o arquivo PDF.");
-        return;
+      if (hasNewFile && editingStudy?.storagePath && editingStudy.storagePath !== storagePath && typeof window.fsDeleteStudyPdf === "function") {
+        window.fsDeleteStudyPdf(editingStudy.storagePath).catch(() => {});
+      }
+
+      if (studyId && editingStudy) {
+        editingStudy.title = title;
+        editingStudy.description = description;
+        editingStudy.pdfUrl = nextPdfUrl;
+        editingStudy.pdfDataUrl = pdfDataUrl;
+        editingStudy.hasEmbeddedPdf = hasEmbeddedPdf;
+        editingStudy.storagePath = storagePath;
+        editingStudy.updatedAt = new Date().toISOString();
+        editingStudy.updatedBy = session?.name || session?.username || "Sistema";
+        setStudyFeedback(
+          usedLocalFallback
+            ? "Estudo atualizado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
+            : "Estudo atualizado."
+        );
+      } else {
+        state.studies.unshift({
+          id: nextStudyId,
+          title,
+          description,
+          pdfUrl: nextPdfUrl,
+          pdfDataUrl,
+          hasEmbeddedPdf,
+          storagePath,
+          createdAt: new Date().toISOString(),
+          createdBy: session?.name || session?.username || "Sistema",
+          updatedAt: null,
+          updatedBy: null,
+        });
+        setStudyFeedback(
+          usedLocalFallback
+            ? "Estudo publicado apenas neste dispositivo. O envio online falhou; para compartilhar com todos, use um link de PDF ou ajuste o Firebase Storage."
+            : "Estudo publicado."
+        );
+      }
+
+      persistAndRender();
+      renderStudies();
+      resetStudyForm();
+    } finally {
+      if (saveStudyButton) {
+        saveStudyButton.disabled = false;
+        saveStudyButton.textContent = originalStudyButtonLabel;
       }
     }
-
-    if (studyId && editingStudy) {
-      editingStudy.title = title;
-      editingStudy.description = description;
-      editingStudy.pdfUrl = pdfUrl;
-      editingStudy.pdfDataUrl = pdfDataUrl;
-      editingStudy.updatedAt = new Date().toISOString();
-      editingStudy.updatedBy = session?.name || session?.username || "Sistema";
-      setStudyFeedback("Estudo atualizado.");
-    } else {
-      state.studies.unshift({
-        id: createId(),
-        title,
-        description,
-        pdfUrl,
-        pdfDataUrl,
-        createdAt: new Date().toISOString(),
-        createdBy: session?.name || session?.username || "Sistema",
-        updatedAt: null,
-        updatedBy: null,
-      });
-      setStudyFeedback("Estudo publicado.");
-    }
-
-    persistAndRender();
-    renderStudies();
-    resetStudyForm();
   });
 
   studiesList?.addEventListener("click", (event) => {
@@ -771,6 +868,10 @@ function bindAppEvents() {
           : true;
       if (!shouldDelete) {
         return;
+      }
+
+      if (study.storagePath && typeof window.fsDeleteStudyPdf === "function") {
+        window.fsDeleteStudyPdf(study.storagePath).catch(() => {});
       }
 
       state.studies = state.studies.filter((entry) => entry.id !== study.id);
@@ -1248,13 +1349,23 @@ function bindAppEvents() {
 
   trackingSection?.addEventListener("click", (e) => {
     const saveBtn = e.target.closest("[data-alert-save]");
-    if (!saveBtn || session?.role !== "coordinator") return;
+    if (!saveBtn || !canManageAbsenceAlerts()) return;
     const alertId = saveBtn.dataset.alertSave;
     const item = saveBtn.closest(".alert-item");
     if (!item) return;
     const statusSelect = item.querySelector(".alert-status-select");
     const obsInput = item.querySelector(".alert-obs-input");
     if (statusSelect && obsInput) handleAlertAction(alertId, statusSelect.value, obsInput.value);
+  });
+
+  trackingSection?.addEventListener("change", (e) => {
+    const statusSelect = e.target.closest(".alert-status-select");
+    if (!statusSelect || !canManageAbsenceAlerts() || statusSelect.value !== "resolved") return;
+    const item = statusSelect.closest(".alert-item");
+    if (!item) return;
+    const obsInput = item.querySelector(".alert-obs-input");
+    const alertId = statusSelect.dataset.alertId;
+    handleAlertAction(alertId, statusSelect.value, obsInput ? obsInput.value : "");
   });
 }
 
@@ -2020,7 +2131,7 @@ function renderStudies() {
 
   studiesList.innerHTML = studies
     .map((study) => {
-      const canOpen = Boolean(study.pdfUrl || study.pdfDataUrl);
+      const canOpen = Boolean(study.pdfUrl || study.pdfDataUrl || study.hasEmbeddedPdf);
       const description = study.description
         ? `<p class="study-item-desc">${escapeHtml(study.description)}</p>`
         : "";
@@ -2056,9 +2167,30 @@ function renderStudies() {
 }
 
 function openStudyPdf(study) {
-  const target = String(study?.pdfUrl || "").trim() || String(study?.pdfDataUrl || "").trim();
+  const externalUrl = String(study?.pdfUrl || "").trim();
+  const embeddedPdf = String(study?.pdfDataUrl || "").trim();
+  let target = externalUrl;
+
+  if (!target && embeddedPdf) {
+    try {
+      const blob = dataUrlToBlob(embeddedPdf);
+      target = URL.createObjectURL(blob);
+      window.setTimeout(() => {
+        try {
+          URL.revokeObjectURL(target);
+        } catch (_) {}
+      }, 300000);
+    } catch (_) {
+      target = embeddedPdf;
+    }
+  }
+
   if (!target) {
-    setStudyFeedback("Este estudo nao possui PDF disponivel.");
+    setStudyFeedback(
+      study?.hasEmbeddedPdf
+        ? "Este PDF foi enviado como arquivo e nao esta disponivel neste dispositivo. Publique por link para compartilhar com todos."
+        : "Este estudo nao possui PDF disponivel."
+    );
     return;
   }
 
@@ -2072,6 +2204,25 @@ function openStudyPdf(study) {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.click();
+}
+
+function dataUrlToBlob(dataUrl) {
+  const match = /^data:([^;,]+)?(;base64)?,(.*)$/i.exec(String(dataUrl || ""));
+  if (!match) {
+    throw new Error("Data URL invalido");
+  }
+
+  const mimeType = match[1] || "application/octet-stream";
+  const isBase64 = Boolean(match[2]);
+  const payload = match[3] || "";
+  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
 }
 
 function readFileAsDataUrl(file) {
@@ -2142,7 +2293,6 @@ function render() {
   renderAccessUsers();
   renderStudies();
   renderTrackingPanel();
-  autoOpenLeaderReportModal();
 }
 
 function renderAccessControl() {
@@ -2915,23 +3065,6 @@ function getAccessibleCells() {
   return state.cells.filter((cell) => allowedNames.has(normalizeName(cell.name)));
 }
 
-function autoOpenLeaderReportModal() {
-  if (!session || session.role !== "leader" || hasAutoOpenedLeaderReport) {
-    return;
-  }
-
-  hasAutoOpenedLeaderReport = true;
-  if (!hasPermission("submitReports")) {
-    return;
-  }
-
-  renderReportCellOptions();
-  applyInitialReportContext();
-  renderAttendanceList();
-  renderLatestReport();
-  openModal(reportModal);
-}
-
 function applyInitialReportContext() {
   if (!session || hasAppliedInitialReportContext) {
     return;
@@ -3312,7 +3445,13 @@ function loadState() {
       return {
         cells,
         reports: reports.map((r) => Object.assign({}, r, { images: imgStore[r.id] || r.images || [] })),
-        studies: studies.map((s) => Object.assign({}, s, { pdfDataUrl: pdfStore[s.id] || s.pdfDataUrl || "" })),
+        studies: studies.map((s) => {
+          const restoredPdf = pdfStore[s.id] || s.pdfDataUrl || "";
+          return Object.assign({}, s, {
+            pdfDataUrl: restoredPdf,
+            hasEmbeddedPdf: Boolean(restoredPdf || s.hasEmbeddedPdf),
+          });
+        }),
         lastReportId,
         updatedAt,
       };
@@ -3379,7 +3518,12 @@ function stripStateForStorage(nextState) {
   return {
     cells: nextState.cells,
     reports: (nextState.reports || []).map((r) => Object.assign({}, r, { images: [] })),
-    studies: (nextState.studies || []).map((s) => Object.assign({}, s, { pdfDataUrl: "" })),
+    studies: (nextState.studies || []).map((s) =>
+      Object.assign({}, s, {
+        pdfDataUrl: "",
+        hasEmbeddedPdf: Boolean(s.pdfDataUrl || s.hasEmbeddedPdf),
+      })
+    ),
     lastReportId: nextState.lastReportId,
     updatedAt: nextState.updatedAt || null,
   };
@@ -3398,7 +3542,13 @@ function hydrateStateSnapshot(raw) {
     return {
       cells,
       reports: reports.map((r) => Object.assign({}, r, { images: imgStore[r.id] || [] })),
-      studies: studies.map((s) => Object.assign({}, s, { pdfDataUrl: pdfStore[s.id] || "" })),
+      studies: studies.map((s) => {
+        const restoredPdf = pdfStore[s.id] || "";
+        return Object.assign({}, s, {
+          pdfDataUrl: restoredPdf,
+          hasEmbeddedPdf: Boolean(restoredPdf || s.hasEmbeddedPdf),
+        });
+      }),
       lastReportId,
       updatedAt,
     };
@@ -3492,8 +3642,10 @@ function normalizeStudy(study) {
     typeof study.pdfDataUrl === "string" && study.pdfDataUrl.startsWith("data:application/pdf")
       ? study.pdfDataUrl
       : "";
+  const hasEmbeddedPdf = study.hasEmbeddedPdf === true || Boolean(pdfDataUrl);
+  const storagePath = String(study.storagePath || "").trim();
 
-  if (!title || (!pdfUrl && !pdfDataUrl)) {
+  if (!title || (!pdfUrl && !pdfDataUrl && !hasEmbeddedPdf)) {
     return null;
   }
 
@@ -3503,6 +3655,8 @@ function normalizeStudy(study) {
     description,
     pdfUrl,
     pdfDataUrl,
+    hasEmbeddedPdf,
+    storagePath,
     createdAt: study.createdAt || new Date().toISOString(),
     createdBy: String(study.createdBy || "").trim(),
     updatedAt: study.updatedAt || null,
@@ -4639,20 +4793,23 @@ function syncAbsenceAlertsWithReports(snapshot) {
         continue;
       }
 
-      const activeAlert = alerts.find(
-        (alert) => alert.memberId === member.id && alert.cellId === cell.id && alert.status !== "resolved"
+      const existingAlert = alerts.find(
+        (alert) => alert.memberId === member.id && alert.cellId === cell.id
       );
+      const shouldReopenResolved =
+        existingAlert?.status === "resolved" && consecutive > parseNonNegativeInt(existingAlert.consecutiveAbsences);
+      const nextStatus = shouldReopenResolved ? "pending" : (existingAlert?.status || "pending");
 
       nextAlerts.push({
-        id: activeAlert?.id || createId(),
+        id: existingAlert?.id || createId(),
         cellId: cell.id,
         cellName: cell.name,
         memberId: member.id,
         memberName: member.name,
         consecutiveAbsences: consecutive,
-        status: activeAlert?.status || "pending",
-        observation: activeAlert?.observation || "",
-        createdAt: activeAlert?.createdAt || new Date().toISOString(),
+        status: nextStatus,
+        observation: existingAlert?.observation || "",
+        createdAt: existingAlert?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
     }
@@ -4663,6 +4820,10 @@ function syncAbsenceAlertsWithReports(snapshot) {
 
 function processAbsenceAlerts() {
   syncAbsenceAlertsWithReports(state);
+}
+
+function canManageAbsenceAlerts() {
+  return ["coordinator", "pastor", "admin"].includes(String(session?.role || ""));
 }
 
 function handleAlertAction(alertId, status, observation) {
