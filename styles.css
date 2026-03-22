@@ -392,9 +392,10 @@ body.modal-open {
 
 .auth-screen .auth-card {
   width: min(480px, 92vw);
-  background: rgba(255, 250, 247, 0.78);
-  box-shadow: 0 20px 56px rgba(12, 7, 8, 0.34);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 250, 247, 0.52);
+  box-shadow: 0 20px 56px rgba(12, 7, 8, 0.28);
+  border-color: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(14px);
 }
 
 .auth-form {
@@ -2598,6 +2599,27 @@ button:hover {
   #report-modal #report-output {
     min-height: 240px;
   }
+}
+
+/* Rodapé da tela home com link de relatar erro */
+.home-footer {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 2rem;
+}
+.bug-report-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s;
+}
+.bug-report-link:hover {
+  color: var(--brand);
+  opacity: 1;
 }
 
 
