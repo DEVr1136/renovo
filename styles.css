@@ -1080,6 +1080,73 @@ button:hover {
   gap: 0.7rem;
 }
 
+.yn-field {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.yn-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.yn-field-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.yn-toggle {
+  display: flex;
+  gap: 0.4rem;
+}
+.yn-option {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-weight: 500;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.yn-option:has(input:checked) {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+}
+.yn-option input[type="radio"] { display: none; }
+.foods-item-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+.foods-item-row input {
+  flex: 1;
+  min-width: 0;
+}
+.foods-item-row input.foods-qty {
+  flex: 0 0 5.5rem;
+}
+.foods-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 1.1rem;
+  padding: 0 0.2rem;
+  line-height: 1;
+}
+.foods-remove-btn:hover { color: var(--brand); }
+
 .visitors-section {
   border: 1px solid var(--line);
   border-radius: 0.6rem;

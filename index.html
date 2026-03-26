@@ -332,7 +332,7 @@
           <button type="button" class="ghost-btn modal-close" id="close-report-modal">Fechar</button>
         </div>
 
-        <div class="report-grid">
+<div class="report-grid">
           <form id="report-form" class="report-form">
             <label>
               Celula
@@ -389,6 +389,28 @@
             </div>
 
 
+            <div class="yn-field">
+              <span class="yn-field-label">Discipulado</span>
+              <div class="yn-toggle">
+                <label class="yn-option"><input type="radio" name="discipleship" value="Sim" /> Sim</label>
+                <label class="yn-option"><input type="radio" name="discipleship" value="Não" /> Não</label>
+              </div>
+            </div>
+
+            <div class="yn-field" id="foods-section">
+              <div class="yn-field-head">
+                <span class="yn-field-label">Alimentos</span>
+                <div class="yn-toggle">
+                  <label class="yn-option"><input type="radio" name="foodsToggle" value="sim" id="foods-yes" /> Sim</label>
+                  <label class="yn-option"><input type="radio" name="foodsToggle" value="nao" id="foods-no" /> Não</label>
+                </div>
+              </div>
+              <div id="foods-list-wrap" hidden>
+                <div id="foods-items-list"></div>
+                <button type="button" class="ghost-btn compact-btn" id="add-food-btn">+ Adicionar item</button>
+              </div>
+            </div>
+
             <div class="visitors-section">
               <span class="visitors-section-label">Visitantes</span>
               <div class="visitor-panel" id="visitor-panel-first"></div>
@@ -424,7 +446,7 @@
                   <canvas id="cell-average-chart" width="170" height="170"></canvas>
                   <div id="cell-average-legend" class="chart-legend"></div>
                 </article>
-                <article class="mini-chart-card">
+                <article class="mini-chart-card" id="overall-average-card">
                   <p>Media geral</p>
                   <canvas id="overall-average-chart" width="170" height="170"></canvas>
                   <div id="overall-average-legend" class="chart-legend"></div>

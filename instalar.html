@@ -60,6 +60,13 @@
       }
       .qr-wrap p { font-size: 0.85rem; color: var(--ink-soft); margin: 0; }
       #qr-canvas { border-radius: 0.5rem; }
+      .qr-download-btn {
+        background: transparent; border: 1.5px solid var(--brand);
+        color: var(--brand); border-radius: 0.5rem; padding: 0.45rem 1.2rem;
+        font-size: 0.85rem; font-family: inherit; font-weight: 600;
+        cursor: pointer; transition: background 0.15s, color 0.15s;
+      }
+      .qr-download-btn:hover { background: var(--brand); color: #fff; }
     </style>
   </head>
   <body>
@@ -93,6 +100,7 @@
         <p>Escaneie para instalar no celular</p>
         <canvas id="qr-canvas"></canvas>
         <p style="font-size:0.75rem;word-break:break-all;color:var(--ink-soft)">devr1136.github.io/renovo/instalar.html</p>
+        <button type="button" class="qr-download-btn" id="qr-download-btn">Baixar imagem</button>
       </div>
     </main>
 
@@ -111,6 +119,19 @@
           correctLevel: QRCode.CorrectLevel.M,
         });
       })();
+
+      document.getElementById("qr-download-btn").addEventListener("click", function () {
+        const canvas = document.querySelector("#qr-canvas canvas") || document.getElementById("qr-canvas");
+        const img = document.querySelector("#qr-canvas img") || canvas;
+        const link = document.createElement("a");
+        link.download = "qrcode-renovo.png";
+        if (img && img.tagName === "IMG") {
+          link.href = img.src;
+        } else if (canvas && canvas.tagName === "CANVAS") {
+          link.href = canvas.toDataURL("image/png");
+        }
+        link.click();
+      });
     </script>
     <script>
       // Mostra instruções para iPhone

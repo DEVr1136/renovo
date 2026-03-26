@@ -96,6 +96,7 @@ const accessNote = document.getElementById("access-note");
 let hasAppliedInitialReportContext = false;
 let currentFirstVisits = [];
 let currentImages = [];
+let currentFoodItems = [];
 let prevCellIds = new Set();
 const collapsedCellIds = new Set();
 
@@ -970,6 +971,7 @@ function bindAppEvents() {
     applyReportMode();
   });
 
+
   reportDateInput?.addEventListener("change", () => {
     loadSavedReportIfExists();
     renderAttendanceList();
@@ -1061,6 +1063,24 @@ function bindAppEvents() {
     }
   });
 
+  // Foods toggle and add button
+  document.querySelectorAll("input[name='foodsToggle']").forEach((radio) => {
+    radio.addEventListener("change", () => {
+      const wrap = document.getElementById("foods-list-wrap");
+      if (wrap) wrap.hidden = radio.value !== "sim";
+      if (radio.value !== "sim") {
+        currentFoodItems = [];
+        renderFoodItems();
+      }
+    });
+  });
+  document.getElementById("add-food-btn")?.addEventListener("click", () => {
+    currentFoodItems.push({ name: "", qty: "" });
+    renderFoodItems();
+    const list = document.getElementById("foods-items-list");
+    list?.querySelectorAll("[data-food-name]")?.item(currentFoodItems.length - 1)?.focus();
+  });
+
   // Image upload events
   const addImageBtn = document.getElementById("add-image-btn");
   const imageFileInput = document.getElementById("image-file-input");
@@ -1125,6 +1145,8 @@ function bindAppEvents() {
       renderFirstVisitList();
       currentImages = [];
       renderImagesList();
+      currentFoodItems = [];
+      renderFoodItems();
       reportOutput.value = "";
       drawReportChart(0, 0, 0);
       renderReportHistory();
@@ -1177,6 +1199,10 @@ function bindAppEvents() {
       visitorNames,
       visitorDetails,
       images: currentImages.slice(),
+      discipleship: String(formData.get("discipleship") || "").trim(),
+      foods: currentFoodItems.length
+        ? currentFoodItems.map((f) => f.qty ? `${f.name} (${f.qty})` : f.name).join(", ")
+        : "",
       createdAt: new Date().toISOString(),
     };
 
@@ -1463,6 +1489,7 @@ async function bootstrapApp() {
   try { runInitialSeedOnce(); } catch (e) { console.warn("[seed] erro:", e); }
   try { ensureMinistryStructure(); } catch (e) { console.warn("[structure] erro:", e); }
   try { ensureCinzaReportsImport(); } catch (e) { console.warn("[cinza-import] erro:", e); }
+  try { ensureVinhoReport20260227(); } catch (e) { console.warn("[vinho-2026-02-27] erro:", e); }
   try { syncAbsenceAlertsWithReports(state); } catch (e) { console.warn("[alerts] erro:", e); }
   session = loadSession();
   hideLoadingScreen();
@@ -1500,7 +1527,7 @@ function ensureMinistryStructure() {
     { name: "Laranja", leader: "Fernando e Elioneide" },
     { name: "Visão de Águia", leader: "Chirlene" },
     { name: "Lilás", leader: "Karina e Jeniffer" },
-    { name: "Vinho", leader: "Jhonatan e Marilene" },
+    { name: "Vinho", leader: "Jonattham e Marilene" },
     { name: "Azul", leader: "Francinaldo e Alexandre" },
     { name: "Logos", leader: "Thiago" },
     { name: "GET", leader: "Miguel e Raíssa" },
@@ -2321,6 +2348,11 @@ function renderAccessControl() {
     statsSection.hidden = isLeader;
   }
 
+  const overallAverageCard = document.getElementById("overall-average-card");
+  if (overallAverageCard) {
+    overallAverageCard.hidden = isLeader;
+  }
+
   if (isLeader) {
     if (createCellCard) {
       createCellCard.hidden = true;
@@ -2546,6 +2578,14 @@ function renderLatestReport() {
   }
 
   const selected = getSelectedReportFromContext(reportsPool);
+  if (!selected) {
+    reportOutput.value = "";
+    drawReportChart(0, 0, 0);
+    drawAverageCharts();
+    drawLineChart(reportCellSelect.value);
+    renderReportImages([]);
+    return;
+  }
   const cell = getCellById(selected.cellId);
   if (!cell) {
     reportOutput.value = "";
@@ -2593,6 +2633,7 @@ function getSelectedReportFromContext(reportsPool) {
     if (latestForCell) {
       return latestForCell;
     }
+    return null;
   }
 
   const byLastId = sortedPool.find((report) => report.id === state.lastReportId);
@@ -2650,6 +2691,8 @@ function loadSavedReportIfExists() {
     }
     currentFirstVisits = [];
     renderFirstVisitList();
+    currentFoodItems = [];
+    renderFoodItems();
     return;
   }
 
@@ -2666,6 +2709,19 @@ function loadSavedReportIfExists() {
   renderFirstVisitList();
   currentImages = Array.isArray(report.images) ? report.images.slice() : [];
   renderImagesList();
+  setFormFieldValue(reportForm, "discipleship", report.discipleship || "");
+  const foodsStr = String(report.foods || "").trim();
+  if (foodsStr) {
+    currentFoodItems = foodsStr.split(",").map((entry) => {
+      const match = entry.trim().match(/^(.+?)\s*\(([^)]*)\)$/);
+      return match ? { name: match[1].trim(), qty: match[2].trim() } : { name: entry.trim(), qty: "" };
+    });
+    const foodsYes = document.getElementById("foods-yes");
+    if (foodsYes) foodsYes.checked = true;
+  } else {
+    currentFoodItems = [];
+  }
+  renderFoodItems();
   state.lastReportId = report.id;
 }
 
@@ -2693,6 +2749,8 @@ function applyReportMode() {
     "visitorsCount",
     "visitorNames",
     "communionMinutes",
+    "discipleship",
+    "foodsToggle",
   ];
 
   reportForm?.classList.toggle("readonly", readOnly);
@@ -3129,6 +3187,22 @@ function buildReportText(report, cell) {
       : "Sem nomes informados.";
 
   const totalPeople = presentMembers.length + report.visitorsCount;
+  const hasExtendedSummary =
+    Boolean(String(report.offering || "").trim()) ||
+    Boolean(String(report.foods || "").trim()) ||
+    Boolean(String(report.snack || "").trim()) ||
+    Boolean(String(report.discipleship || "").trim()) ||
+    (report.visits !== null && typeof report.visits !== "undefined") ||
+    (report.conversions !== null && typeof report.conversions !== "undefined");
+  const extendedSummary = hasExtendedSummary
+    ? `
+${ICONS.offering} Oferta: ${formatReportMetaValue(report.offering)}
+${ICONS.foods} Alimentos: ${formatReportMetaValue(report.foods)}
+${ICONS.snack} Lanche: ${formatReportMetaValue(report.snack)}
+${ICONS.discipleship} Discipulados: ${formatReportMetaValue(report.discipleship)}
+${ICONS.visits} Visitas: ${formatReportMetaNumber(report.visits)}
+${ICONS.conversions} Conversoes: ${formatReportMetaNumber(report.conversions)}`
+    : "";
 
   return `${ICONS.chartDown}RELATORIO DA CELULA *${cell.name.toUpperCase()}*${ICONS.blackHeart}
 ${ICONS.calendar} Data: ${formatDateForReport(report.date)}
@@ -3156,8 +3230,17 @@ ${ICONS.summary} RESUMO GERAL
 ${ICONS.people} Total de membros: ${members.length}
 ${ICONS.present} Presentes: ${presentMembers.length}
 ${ICONS.visitors} Visitantes: ${report.visitorsCount}
-${ICONS.totalPeople} Total de pessoas: ${totalPeople}${report.communionMinutes > 0 ? `\n🍞 Tempo de comunhao: ${report.communionMinutes} min` : ""}${(report.newVisitorsCount || 0) > 0 ? `\n🆕 Visitantes novos: ${report.newVisitorsCount}` : ""}${(report.returningVisitorsCount || 0) > 0 ? `\n🔄 Visitantes retornaram: ${report.returningVisitorsCount}` : ""}
+${ICONS.totalPeople} Total de pessoas: ${totalPeople}${report.communionMinutes > 0 ? `\n🍞 Tempo de comunhao: ${report.communionMinutes} min` : ""}${(report.newVisitorsCount || 0) > 0 ? `\n🆕 Visitantes novos: ${report.newVisitorsCount}` : ""}${(report.returningVisitorsCount || 0) > 0 ? `\n🔄 Visitantes retornaram: ${report.returningVisitorsCount}` : ""}${extendedSummary}
 `;
+}
+
+function formatReportMetaValue(value) {
+  const text = String(value || "").trim();
+  return text || "-";
+}
+
+function formatReportMetaNumber(value) {
+  return value === null || typeof value === "undefined" ? "-" : String(value);
 }
 
 function resolveRoleSuffix(memberName, leaderNames, coLeaderNames) {
@@ -3223,6 +3306,17 @@ function parseNonNegativeInt(value) {
   const number = Number.parseInt(String(value || "0"), 10);
   if (!Number.isFinite(number) || number < 0) {
     return 0;
+  }
+  return number;
+}
+
+function parseOptionalNonNegativeInt(value) {
+  if (value === "" || value === null || typeof value === "undefined") {
+    return null;
+  }
+  const number = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(number) || number < 0) {
+    return null;
   }
   return number;
 }
@@ -3626,6 +3720,12 @@ function normalizeReport(report) {
     address: String(report.address || "").trim(),
     newVisitorsCount: parseNonNegativeInt(report.newVisitorsCount),
     returningVisitorsCount: parseNonNegativeInt(report.returningVisitorsCount),
+    offering: String(report.offering || "").trim(),
+    foods: String(report.foods || "").trim(),
+    snack: String(report.snack || "").trim(),
+    discipleship: String(report.discipleship || "").trim(),
+    visits: parseOptionalNonNegativeInt(report.visits),
+    conversions: parseOptionalNonNegativeInt(report.conversions),
     communionMinutes:
       parseNonNegativeInt(report.communionMinutes) ||
       (Boolean(report.hadCommunion) ? 15 : 0),
@@ -3869,6 +3969,7 @@ function seedInitialDataIfEmpty() {
     const vinhoMembers = [
       "Jonattham", "Marilene", "Mikaelly", "Marcos", "Sabrina", "Gabriel",
       "Marilda", "Estefanny", "Madalena", "Silvia", "Adriana", "Francisco", "Alzira", "Kessio",
+      "Conceição", "Jerusa", "Izeti", "Kauan", "José", "Ely", "Luiza", "Etefany",
     ];
     const vinhoCell = {
       id: createId(), name: "Vinho", neighborhood: "Sem endereco",
@@ -4029,13 +4130,24 @@ function seedInitialDataIfEmpty() {
     if (!cell) return;
     if (state.reports.some((r) => r.cellId === cell.id && r.date === report.date)) return;
     const present = report.present || [];
+    const visitors = report.visitors || [];
     state.reports.push({
       id: createId(), cellId: cell.id, date: report.date,
       leaders: report.leaders || "", coLeaders: report.coLeaders || "", host: report.host || "",
+      address: report.address || "",
+      newVisitorsCount: parseOptionalNonNegativeInt(report.newVisitorsCount) ?? visitors.length,
+      returningVisitorsCount: parseOptionalNonNegativeInt(report.returningVisitorsCount) ?? 0,
+      communionMinutes: parseOptionalNonNegativeInt(report.communionMinutes) ?? 0,
       presentMemberIds: cell.members.filter((m) => present.some((n) => normalizeName(n) === normalizeName(m.name))).map((m) => m.id),
-      visitorsCount: (report.visitors || []).length,
-      visitorNames: (report.visitors || []).map((v) => v.name),
-      visitorDetails: (report.visitors || []),
+      visitorsCount: visitors.length,
+      visitorNames: visitors.map((v) => v.name),
+      visitorDetails: visitors,
+      offering: String(report.offering || "").trim(),
+      foods: String(report.foods || "").trim(),
+      snack: String(report.snack || "").trim(),
+      discipleship: String(report.discipleship || "").trim(),
+      visits: parseOptionalNonNegativeInt(report.visits),
+      conversions: parseOptionalNonNegativeInt(report.conversions),
       createdAt: new Date(`${report.date}T20:00:00`).toISOString(),
     });
   };
@@ -4098,6 +4210,46 @@ function seedInitialDataIfEmpty() {
     date: "2026-02-06", leaders: "Jonattham e Marilene", coLeaders: "", host: "",
     present: ["Marilene", "Jonattham", "Adriana", "Silvia", "Kessio"],
     visitors: [],
+  });
+
+  // Vinho 27/02
+  addMembers("Vinho", ["Conceição", "Jerusa", "Izeti", "Kauan", "José", "Ely", "Luiza", "Etefany"]);
+  addReport("Vinho", {
+    date: "2026-02-27",
+    leaders: "Jonattham e Marilene",
+    coLeaders: "",
+    host: "",
+    present: [
+      "Marilene",
+      "Jonattham",
+      "Mikaelly",
+      "Sabrina",
+      "Alzira",
+      "Adriana",
+      "José",
+      "Ely",
+      "Conceição",
+      "Luiza",
+      "Francisco",
+      "Silvia",
+      "Kauan",
+      "Jerusa",
+      "Izeti",
+      "Etefany",
+      "Marilda",
+    ],
+    visitors: [
+      { name: "Bernado", how: "", address: "", phone: "" },
+      { name: "Viana", how: "", address: "", phone: "" },
+      { name: "Eduarda", how: "", address: "", phone: "" },
+      { name: "Abrao", how: "", address: "", phone: "" },
+    ],
+    offering: "não",
+    foods: "não",
+    snack: "sim",
+    discipleship: "",
+    visits: 0,
+    conversions: 0,
   });
 
   // Preta 03/02 — novos membros: Thayssa, Leticia, Faby, Andrey, Dryka
@@ -4333,6 +4485,88 @@ function seedInitialDataIfEmpty() {
   saveUsers(users);
 }
 
+function ensureVinhoReport20260227() {
+  const vinhoCell = state.cells.find((cell) => normalizeName(cell.name) === "vinho");
+  if (!vinhoCell) {
+    return;
+  }
+
+  let changed = false;
+  const missingMembers = ["Conceição", "Jerusa", "Izeti", "Kauan", "José", "Ely", "Luiza", "Etefany"];
+  const existingMembers = new Set(vinhoCell.members.map((member) => normalizeName(member.name)));
+  missingMembers.forEach((name) => {
+    if (existingMembers.has(normalizeName(name))) {
+      return;
+    }
+    vinhoCell.members.push({ id: createId(), name, phone: "" });
+    existingMembers.add(normalizeName(name));
+    changed = true;
+  });
+
+  const alreadyHasReport = state.reports.some(
+    (report) => report.cellId === vinhoCell.id && String(report.date || "").trim() === "2026-02-27"
+  );
+
+  if (!alreadyHasReport) {
+    const presentNames = [
+      "Marilene",
+      "Jonattham",
+      "Mikaelly",
+      "Sabrina",
+      "Alzira",
+      "Adriana",
+      "José",
+      "Ely",
+      "Conceição",
+      "Luiza",
+      "Francisco",
+      "Silvia",
+      "Kauan",
+      "Jerusa",
+      "Izeti",
+      "Etefany",
+      "Marilda",
+    ];
+    const visitors = [
+      { name: "Bernado", how: "", address: "", phone: "" },
+      { name: "Viana", how: "", address: "", phone: "" },
+      { name: "Eduarda", how: "", address: "", phone: "" },
+      { name: "Abrao", how: "", address: "", phone: "" },
+    ];
+
+    state.reports.push({
+      id: createId(),
+      cellId: vinhoCell.id,
+      date: "2026-02-27",
+      leaders: "Jonattham e Marilene",
+      coLeaders: "",
+      host: "",
+      address: "",
+      newVisitorsCount: 4,
+      returningVisitorsCount: 0,
+      communionMinutes: 0,
+      presentMemberIds: vinhoCell.members
+        .filter((member) => presentNames.some((name) => normalizeName(name) === normalizeName(member.name)))
+        .map((member) => member.id),
+      visitorsCount: visitors.length,
+      visitorNames: visitors.map((visitor) => visitor.name),
+      visitorDetails: visitors,
+      offering: "não",
+      foods: "não",
+      snack: "sim",
+      discipleship: "",
+      visits: 0,
+      conversions: 0,
+      createdAt: new Date("2026-02-27T20:00:00").toISOString(),
+    });
+    changed = true;
+  }
+
+  if (changed) {
+    saveState(state);
+  }
+}
+
 function drawReportChart(present, absent, visitors) {
   const wrap = document.getElementById("report-chart-wrap");
   const canvas = document.getElementById("report-chart");
@@ -4404,6 +4638,42 @@ function drawReportChart(present, absent, visitors) {
     `
     )
     .join("");
+}
+
+function renderFoodItems() {
+  const wrap = document.getElementById("foods-list-wrap");
+  const list = document.getElementById("foods-items-list");
+  const foodsYes = document.getElementById("foods-yes");
+  const foodsNo = document.getElementById("foods-no");
+  if (!wrap || !list) return;
+
+  const isYes = foodsYes?.checked;
+  wrap.hidden = !isYes;
+
+  list.innerHTML = currentFoodItems.map((item, i) => `
+    <div class="foods-item-row">
+      <input type="text" placeholder="Item" value="${escapeHtml(item.name)}" data-food-name="${i}" />
+      <input type="text" class="foods-qty" placeholder="Qtd (ex: 2kg)" value="${escapeHtml(item.qty)}" data-food-qty="${i}" />
+      <button type="button" class="foods-remove-btn" data-food-remove="${i}" aria-label="Remover">&times;</button>
+    </div>
+  `).join("");
+
+  list.querySelectorAll("[data-food-name]").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      currentFoodItems[Number(e.target.dataset.foodName)].name = e.target.value;
+    });
+  });
+  list.querySelectorAll("[data-food-qty]").forEach((input) => {
+    input.addEventListener("input", (e) => {
+      currentFoodItems[Number(e.target.dataset.foodQty)].qty = e.target.value;
+    });
+  });
+  list.querySelectorAll("[data-food-remove]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      currentFoodItems.splice(Number(e.target.dataset.foodRemove), 1);
+      renderFoodItems();
+    });
+  });
 }
 
 function renderFirstVisitList() {
@@ -5119,4 +5389,163 @@ function renderPastorPanel() {
         ${alertItems ? `<div class="alert-list">${alertItems}</div>` : `<p class="empty">Nenhum alerta ativo no momento.</p>`}
       </div>
     </div>`;
+}
+
+// === REMOVIDO: import por texto (substituído por injeção via console) ===
+function parseReportText(text) {
+  const t = text.replace(/\ufe0f/g, "").replace(/\u200d/g, "").replace(/\u2060/g, "").replace(/\u00a0/g, " ");
+
+  const result = {
+    cellName: "",
+    date: "",
+    leaders: "",
+    coLeaders: "",
+    host: "",
+    address: "",
+    memberNames: [],
+    presentNames: [],
+    visitorNames: [],
+  };
+
+  // Nome da celula — pega a linha inteira e limpa
+  const celulaLine = t.match(/RELAT[OÓ]RIO\s+DA\s+C[EÉ]LULA[^\n]*/i);
+  if (celulaLine) {
+    let cellName = celulaLine[0]
+      .replace(/RELAT[OÓ]RIO\s+DA\s+C[EÉ]LULA/i, "") // remove o prefixo
+      .replace(/[*_:]/g, "")                            // remove markdown e dois pontos
+      .replace(/\p{Emoji}/gu, "")                       // remove emojis
+      .replace(/^c[eé]lula\s+/i, "")                   // remove "Célula " redundante
+      .trim();
+    if (cellName) result.cellName = cellName;
+  }
+
+  // Data DD/MM/YYYY ou DD/MM (ano assumido como atual), dois pontos opcionais
+  const dateMatch = t.match(/Data:?\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i);
+  if (dateMatch) {
+    const year = dateMatch[3] || String(new Date().getFullYear());
+    result.date = `${year}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}`;
+  }
+
+  // Lideres
+  const leadersMatch = t.match(/L[íi]deres?:\s*([^\n]+)/i);
+  if (leadersMatch) result.leaders = leadersMatch[1].trim();
+
+  // Co-lideres
+  const coLeadersMatch = t.match(/Co-l[íi]deres?:\s*([^\n]*)/i);
+  if (coLeadersMatch) result.coLeaders = coLeadersMatch[1].trim();
+
+  // Anfitriao
+  const hostMatch = t.match(/Anfitri[aã][ao]?(?:\s*\([^)]*\))?:\s*([^\n]+)/i);
+  if (hostMatch) result.host = hostMatch[1].trim();
+
+  // Endereco / Local
+  const addrMatch = t.match(/(?:Local|Endere[çc]o)[^\n:]*:\s*([^\n]+)/i);
+  if (addrMatch) result.address = addrMatch[1].trim();
+
+  function extractList(sectionPattern) {
+    const regex = new RegExp(
+      sectionPattern + "[^\n]*\n([\\s\\S]*?)(?=\\n\\s*(?:RESUMO|FALTARAM|PRESENTES|VISITANTES|MEMBROS|Oferta|Alimentos|Lanche|Discipulado|Visitas|Convers|$))",
+      "i"
+    );
+    const match = t.match(regex);
+    if (!match) return [];
+    return match[1]
+      .split(/\r?\n/)
+      .map((l) => l
+        .replace(/^\d+[\.\)]\s*/, "")  // remove "1. " ou "1) "
+        .replace(/^[-•]\s*/, "")        // remove "- " ou "• "
+        .replace(/[*_]/g, "")           // remove markdown
+        .replace(/\s*[-–]\s*(?:co-?)?visit\w*/gi, "")   // remove "- Visitante"
+        .replace(/\s*\(\s*(?:co-?)?visit\w*\s*\)/gi, "") // remove "( visitante)"
+        .trim()
+      )
+      .filter((n) => n.length > 1 && !/^[\u{1F4B0}\u{1F956}\u{1F370}\u{1F4D6}\u{1F3E1}\u{1F64F}\u{1F4CA}\u2705\u274c\u{1F64B}\u{1F465}\u{1F46A}]/u.test(n));
+  }
+
+  // Strip role suffixes like "( Líder )", "( Colíder )", "(LÍDER)" etc.
+  function stripRoleSuffix(name) {
+    return name.replace(/\s*\([\s]*(?:l[íi]der|col[íi]der|co-l[íi]der)[^\)]*\)/gi, "").trim();
+  }
+
+  result.memberNames = extractList("MEMBROS").map(stripRoleSuffix).filter(Boolean);
+  // Aceita "PRESENTES" ou "Membros presentes"
+  result.presentNames = (extractList("PRESENTES").length
+    ? extractList("PRESENTES")
+    : extractList("Membros presentes")
+  ).map(stripRoleSuffix).filter(Boolean);
+  result.visitorNames = extractList("VISITANTES");
+
+  // Total de visitantes do RESUMO GERAL — aceita numero com ou sem parenteses
+  const visitorsCountMatch = t.match(/Visitantes:\s*\(?(\d+)\)?/i);
+  result.visitorsCount = visitorsCountMatch ? parseInt(visitorsCountMatch[1], 10) : result.visitorNames.length;
+
+  return result;
+}
+
+function applyParsedReport(parsed) {
+  if (parsed.cellName) {
+    const normalizedTarget = normalizeName(parsed.cellName);
+    const foundCell = state.cells.find((c) => normalizeName(c.name) === normalizedTarget);
+    if (foundCell && reportCellSelect) {
+      reportCellSelect.value = foundCell.id;
+      reportCellSelect.dispatchEvent(new Event("change"));
+    }
+  }
+
+  const dateField = reportForm?.elements?.namedItem("date");
+  if (dateField && parsed.date) {
+    dateField.value = parsed.date;
+    dateField.dispatchEvent(new Event("change"));
+  }
+
+  setFormFieldValue(reportForm, "leaders", parsed.leaders);
+  setFormFieldValue(reportForm, "coLeaders", parsed.coLeaders);
+  setFormFieldValue(reportForm, "host", parsed.host);
+  if (parsed.address) setFormFieldValue(reportForm, "address", parsed.address);
+
+  // Cadastra membros se a celula estiver vazia
+  if (parsed.memberNames.length) {
+    const cellId = reportCellSelect?.value;
+    const targetCell = getCellById(cellId);
+    if (targetCell && targetCell.members.length === 0) {
+      parsed.memberNames.forEach((name) => {
+        targetCell.members.push({ id: createId(), name, phone: "" });
+      });
+      persistAndRender();
+      renderAttendanceList();
+    }
+  }
+
+  if (parsed.presentNames.length) {
+    const normalizedPresent = parsed.presentNames.map((n) => normalizeName(n));
+    setTimeout(() => {
+      attendanceList?.querySelectorAll('input[name="presentMemberIds"]').forEach((cb) => {
+        const nameSpan = cb.closest("label")?.querySelector("span");
+        const memberName = normalizeName(nameSpan?.textContent || "");
+        cb.checked = normalizedPresent.some((p) => {
+          if (memberName === p) return true;
+          if (memberName.startsWith(p) || p.startsWith(memberName)) return true;
+          // Fuzzy: primeiros 5 chars iguais tolera typos (wevertom/weverton, andrea/andreia)
+          const prefixLen = Math.min(5, Math.min(p.length, memberName.length));
+          if (prefixLen >= 5 && p.slice(0, prefixLen) === memberName.slice(0, prefixLen)) return true;
+          return false;
+        });
+      });
+    }, 150);
+  }
+
+  if (parsed.visitorNames.length) {
+    currentFirstVisits = parsed.visitorNames.map((name) => ({ name, how: "", address: "", phone: "" }));
+  } else if (parsed.visitorsCount > 0) {
+    // Visitantes sem nome: cria entradas genericas para manter o total correto
+    currentFirstVisits = Array.from({ length: parsed.visitorsCount }, (_, i) => ({
+      name: `Visitante ${i + 1}`,
+      how: "",
+      address: "",
+      phone: "",
+    }));
+  } else {
+    currentFirstVisits = [];
+  }
+  renderFirstVisitList();
 }
