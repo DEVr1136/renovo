@@ -1115,6 +1115,7 @@ button:hover {
   background: var(--bg);
   color: var(--ink-soft);
   font-weight: 500;
+  white-space: nowrap;
   transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
 .yn-option:has(input:checked) {
