@@ -1428,15 +1428,14 @@ async function bootstrapApp() {
 
     // Estado (células, relatórios, estudos)
     if (fsData.state) {
-      const localState = loadState();
       const remoteState = hydrateStateSnapshot(fsData.state);
-      const useRemote = getStateUpdatedAt(remoteState) >= getStateUpdatedAt(localState);
-      const chosenState = useRemote ? remoteState : localState;
 
-      state.cells = chosenState.cells;
-      state.studies = chosenState.studies;
-      state.lastReportId = chosenState.lastReportId;
-      state.updatedAt = chosenState.updatedAt;
+      // Firestore sempre vence quando carrega com sucesso —
+      // evita que localStorage vazio sobrescreva dados inseridos via console/admin
+      state.cells = remoteState.cells;
+      state.studies = remoteState.studies;
+      state.lastReportId = remoteState.lastReportId;
+      state.updatedAt = remoteState.updatedAt;
 
       // Reports live in a dedicated Firestore doc; hydrate with local images
       if (Array.isArray(fsData.reports)) {
@@ -1449,13 +1448,10 @@ async function bootstrapApp() {
           state.reports = fsData.reports.map(normalizeReport).filter(Boolean);
         }
       } else {
-        state.reports = chosenState.reports;
+        state.reports = remoteState.reports;
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stripStateForStorage(state)));
-      if (!useRemote && window.fsSaveState) {
-        window.fsSaveState(state);
-      }
     } else {
       // Firebase vazio — carrega localStorage e faz upload imediato para o Firestore
       const cached = loadState();
