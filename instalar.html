@@ -80,7 +80,7 @@
       <p class="install-subtitle">Instale o app no seu celular para acesso rápido.</p>
 
       <!-- Botão automático (Android/Chrome) -->
-      <button type="button" class="install-btn" data-install-app hidden>
+      <button type="button" class="install-btn" id="install-btn" hidden>
         Instalar aplicativo
       </button>
 
@@ -88,9 +88,19 @@
       <div class="install-steps" id="ios-steps" hidden>
         <h3>iPhone / Safari</h3>
         <ol>
-          <li>Toque em <strong>Compartilhar</strong> (ícone de caixa com seta)</li>
-          <li>Toque em <strong>"Adicionar à Tela de Início"</strong></li>
-          <li>Toque em <strong>Adicionar</strong></li>
+          <li>Toque em <strong>Compartilhar</strong> (ícone de caixa com seta ↑)</li>
+          <li>Role a lista e toque em <strong>"Adicionar à Tela de Início"</strong></li>
+          <li>Toque em <strong>Adicionar</strong> no canto superior direito</li>
+        </ol>
+      </div>
+
+      <!-- Instruções Android manual (quando o prompt não aparece) -->
+      <div class="install-steps" id="android-steps" hidden>
+        <h3>Android — instalação manual</h3>
+        <ol>
+          <li>Toque nos <strong>três pontos</strong> (⋮) no canto superior do Chrome</li>
+          <li>Toque em <strong>"Instalar app"</strong> ou <strong>"Adicionar à tela inicial"</strong></li>
+          <li>Confirme tocando em <strong>Instalar</strong></li>
         </ol>
       </div>
 
@@ -104,7 +114,6 @@
       </div>
     </main>
 
-    <script src="pwa-install.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
       (function () {
@@ -134,12 +143,62 @@
       });
     </script>
     <script>
-      // Mostra instruções para iPhone
-      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-      const isInStandaloneMode = window.navigator.standalone;
-      if (isIOS && !isInStandaloneMode) {
-        document.getElementById("ios-steps").hidden = false;
-      }
+      (function () {
+        const ua = navigator.userAgent || "";
+        const isIOS = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+        const isAndroid = /android/i.test(ua);
+        const isStandalone =
+          window.matchMedia("(display-mode: standalone)").matches ||
+          window.navigator.standalone === true;
+
+        const installBtn   = document.getElementById("install-btn");
+        const iosSteps     = document.getElementById("ios-steps");
+        const androidSteps = document.getElementById("android-steps");
+
+        if (isStandalone) return; // já instalado, não mostra nada
+
+        if (isIOS) {
+          iosSteps.hidden = false;
+          return; // iOS nunca tem prompt automático
+        }
+
+        let deferredPrompt = null;
+
+        window.addEventListener("beforeinstallprompt", function (e) {
+          e.preventDefault();
+          deferredPrompt = e;
+          installBtn.hidden = false;
+        });
+
+        installBtn.addEventListener("click", async function () {
+          if (!deferredPrompt) {
+            androidSteps.hidden = false;
+            installBtn.hidden = true;
+            return;
+          }
+          deferredPrompt.prompt();
+          const choice = await deferredPrompt.userChoice;
+          deferredPrompt = null;
+          installBtn.hidden = true;
+          if (choice.outcome !== "accepted") {
+            androidSteps.hidden = false;
+          }
+        });
+
+        window.addEventListener("appinstalled", function () {
+          installBtn.hidden = true;
+          androidSteps.hidden = true;
+        });
+
+        // Se Chrome não disparar o prompt em 2s, mostra instruções manuais (Android)
+        if (isAndroid) {
+          setTimeout(function () {
+            if (!deferredPrompt) {
+              androidSteps.hidden = false;
+            }
+          }, 2000);
+        }
+      })();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
