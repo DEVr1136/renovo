@@ -51,6 +51,12 @@ const overallAverageLegend = document.getElementById("overall-average-legend");
 
 const createCellCard = document.getElementById("create-cell-card");
 const addMemberCard = document.getElementById("add-member-card");
+const importMembersCard = document.getElementById("import-members-card");
+const importMembersModal = document.getElementById("import-members-modal");
+const importMembersForm = document.getElementById("import-members-form");
+const importMembersCellSelect = document.getElementById("import-members-cell");
+const importMembersTextarea = document.getElementById("import-members-textarea");
+const importMembersPreview = document.getElementById("import-members-preview");
 const viewCellsCard = document.getElementById("view-cells-card");
 const weeklyReportCard = document.getElementById("weekly-report-card");
 const manageAccessCard = document.getElementById("manage-access-card");
@@ -377,6 +383,47 @@ function bindAppEvents() {
       return;
     }
     openModal(memberModal);
+  });
+
+  importMembersCard?.addEventListener("click", () => {
+    if (session?.role !== "admin") return;
+    renderImportMembersCellOptions();
+    importMembersTextarea.value = "";
+    importMembersPreview.textContent = "";
+    openModal(importMembersModal);
+  });
+
+  document.getElementById("close-import-members-modal")?.addEventListener("click", () => {
+    closeModal(importMembersModal);
+  });
+
+  importMembersTextarea?.addEventListener("input", () => {
+    const names = parseImportNames(importMembersTextarea.value);
+    importMembersPreview.textContent = names.length > 0 ? `${names.length} nome(s) encontrado(s)` : "";
+  });
+
+  importMembersForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cellId = importMembersCellSelect.value;
+    const cell = state.cells.find(c => c.id === cellId);
+    if (!cell) return;
+
+    const names = parseImportNames(importMembersTextarea.value);
+    if (!names.length) return;
+
+    let added = 0;
+    for (const name of names) {
+      const already = (cell.members || []).some(m => normalizeName(m.name) === normalizeName(name));
+      if (!already) {
+        if (!cell.members) cell.members = [];
+        cell.members.push({ id: createId(), name, phone: "" });
+        added++;
+      }
+    }
+
+    persistAndRender();
+    closeModal(importMembersModal);
+    alert(`${added} membro(s) importado(s) para ${cell.name}. ${names.length - added} já existiam.`);
   });
 
   viewCellsCard?.addEventListener("click", () => {
@@ -1428,21 +1475,34 @@ async function bootstrapApp() {
 
     // Estado (células, relatórios, estudos)
     if (fsData.state) {
-      const localState = loadState();
       const remoteState = hydrateStateSnapshot(fsData.state);
-      const useRemote = getStateUpdatedAt(remoteState) >= getStateUpdatedAt(localState);
-      const chosenState = useRemote ? remoteState : localState;
 
-      state.cells = chosenState.cells;
-      state.reports = chosenState.reports;
-      state.studies = chosenState.studies;
-      state.lastReportId = chosenState.lastReportId;
-      state.updatedAt = chosenState.updatedAt;
+      // Células: doc dedicado renovo/cells — nunca sobrescrito por saves de relatório
+      if (Array.isArray(fsData.cells)) {
+        state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
+      } else {
+        state.cells = remoteState.cells; // legacy (células ainda no doc state)
+      }
+
+      state.studies = remoteState.studies;
+      state.lastReportId = remoteState.lastReportId;
+      state.updatedAt = remoteState.updatedAt;
+
+      // Relatórios: doc dedicado renovo/reports
+      if (Array.isArray(fsData.reports)) {
+        try {
+          const imgStore = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
+          state.reports = fsData.reports
+            .map(normalizeReport).filter(Boolean)
+            .map((r) => Object.assign({}, r, { images: imgStore[r.id] || [] }));
+        } catch (_) {
+          state.reports = fsData.reports.map(normalizeReport).filter(Boolean);
+        }
+      } else {
+        state.reports = remoteState.reports;
+      }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stripStateForStorage(state)));
-      if (!useRemote && window.fsSaveState) {
-        window.fsSaveState(state);
-      }
     } else {
       // Firebase vazio — carrega localStorage e faz upload imediato para o Firestore
       const cached = loadState();
@@ -2370,6 +2430,9 @@ function renderAccessControl() {
     if (viewVisitantesCard) {
       viewVisitantesCard.hidden = true;
     }
+    if (importMembersCard) {
+      importMembersCard.hidden = true;
+    }
     if (viewStudiesCard) {
       viewStudiesCard.hidden = !hasPermission("viewStudies");
     }
@@ -2385,6 +2448,10 @@ function renderAccessControl() {
 
   if (addMemberCard) {
     addMemberCard.hidden = !hasPermission("manageMembers");
+  }
+
+  if (importMembersCard) {
+    importMembersCard.hidden = session?.role !== "admin";
   }
 
   if (viewCellsCard) {
@@ -2414,6 +2481,21 @@ function renderStats() {
   totalCells.textContent = String(visibleCells.length);
   const membersCount = visibleCells.reduce((acc, cell) => acc + cell.members.length, 0);
   totalMembers.textContent = String(membersCount);
+}
+
+function parseImportNames(text) {
+  return (text || "").split(/\r?\n/)
+    .map(l => l.replace(/^\d+[\.\)]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function renderImportMembersCellOptions() {
+  if (!importMembersCellSelect) return;
+  importMembersCellSelect.innerHTML =
+    '<option value="">Selecione a célula</option>' +
+    state.cells
+      .map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
+      .join("");
 }
 
 function renderMemberCellOptions() {

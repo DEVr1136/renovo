@@ -203,6 +203,14 @@
             </span>
           </button>
 
+          <button class="action-card action-card-member" id="import-members-card" type="button" hidden>
+            <span class="action-icon">&#128229;</span>
+            <span class="action-content">
+              <strong>Importar membros</strong>
+              <small>Cole uma lista de nomes de uma vez.</small>
+            </span>
+          </button>
+
           <button class="action-card action-card-report" id="weekly-report-card" type="button">
             <span class="action-icon">&#128203;</span>
             <span class="action-content">
@@ -305,6 +313,32 @@
             <input name="memberPhone" maxlength="20" placeholder="(11) 99999-9999" />
           </label>
           <button type="submit">Adicionar membro</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: Importar membros (admin) -->
+    <div class="modal-backdrop" id="import-members-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="import-members-title">
+        <div class="modal-head">
+          <h2 id="import-members-title">Importar membros</h2>
+          <button type="button" class="ghost-btn modal-close" id="close-import-members-modal">Fechar</button>
+        </div>
+        <form id="import-members-form">
+          <label>
+            Célula
+            <select name="cellId" id="import-members-cell" required>
+              <option value="">Selecione a célula</option>
+            </select>
+          </label>
+          <label>
+            Lista de nomes <small style="font-weight:400;color:var(--ink-soft)">(um por linha)</small>
+            <textarea name="memberNames" id="import-members-textarea" rows="10"
+              placeholder="João Silva&#10;Maria Souza&#10;Pedro Santos" required
+              style="font-family:inherit;font-size:0.95rem;resize:vertical"></textarea>
+          </label>
+          <p id="import-members-preview" style="font-size:0.85rem;color:var(--ink-soft);margin:0"></p>
+          <button type="submit">Importar</button>
         </form>
       </div>
     </div>
@@ -673,6 +707,8 @@
             navigator.serviceWorker.addEventListener("controllerchange", () => {
               window.location.reload();
             });
+            // Verifica atualização a cada 60 segundos enquanto a página está aberta
+            setInterval(() => registration.update().catch(() => {}), 60000);
           } catch (_) {}
         });
       }
