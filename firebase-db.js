@@ -2,10 +2,11 @@
 (function () {
   function installOfflineFallbacks() {
     window.fsLoadAll = async function () {
-      return { state: null, reports: null, users: null, visitantes: null };
+      return { state: null, cells: null, reports: null, users: null, visitantes: null };
     };
 
     window.fsSaveState = function () {};
+    window.fsSaveCells = function () {};
     window.fsSaveReports = function () {};
     window.fsSaveUsers = function () {};
     window.fsSaveVisitantes = function () {};
@@ -54,39 +55,48 @@
 
   window.fsLoadAll = async function () {
     try {
-      const [stateDoc, reportsDoc, usersDoc, visitantesDoc] = await Promise.all([
+      const [stateDoc, cellsDoc, reportsDoc, usersDoc, visitantesDoc] = await Promise.all([
         db.collection("renovo").doc("state").get(),
+        db.collection("renovo").doc("cells").get(),
         db.collection("renovo").doc("reports").get(),
         db.collection("renovo").doc("users").get(),
         db.collection("renovo").doc("visitantes").get(),
       ]);
+
+      // Cells: prefer dedicated doc; fall back to legacy cells inside state doc
+      let cells = null;
+      if (cellsDoc.exists) {
+        cells = Array.isArray(cellsDoc.data().list) ? cellsDoc.data().list : [];
+      } else if (stateDoc.exists && Array.isArray(stateDoc.data().cells)) {
+        cells = stateDoc.data().cells; // legacy — migrado no próximo save
+      }
 
       // Reports: prefer dedicated doc; fall back to legacy reports inside state doc
       let reports = null;
       if (reportsDoc.exists) {
         reports = Array.isArray(reportsDoc.data().list) ? reportsDoc.data().list : [];
       } else if (stateDoc.exists && Array.isArray(stateDoc.data().reports)) {
-        reports = stateDoc.data().reports; // legacy — will be migrated on next save
+        reports = stateDoc.data().reports; // legacy — migrado no próximo save
       }
 
       return {
         state: stateDoc.exists ? stateDoc.data() : null,
+        cells,
         reports,
         users: usersDoc.exists ? (usersDoc.data().list || null) : null,
         visitantes: visitantesDoc.exists ? (visitantesDoc.data().list || null) : null,
       };
     } catch (error) {
       console.warn("[Firebase] Falha ao carregar dados:", error?.message || error);
-      return { state: null, reports: null, users: null, visitantes: null };
+      return { state: null, cells: null, reports: null, users: null, visitantes: null };
     }
   };
 
+  // Salva apenas estudos + metadados — células e relatórios têm documentos próprios
   window.fsSaveState = function (nextState) {
     if (!nextState || typeof nextState !== "object") return;
 
-    // Save cells + studies + metadata — reports go to a separate document
     const stateDoc = {
-      cells: Array.isArray(nextState.cells) ? nextState.cells : [],
       studies: Array.isArray(nextState.studies)
         ? nextState.studies.map((s) => Object.assign({}, s, { pdfDataUrl: "" }))
         : [],
@@ -98,8 +108,17 @@
       .set(stateDoc)
       .catch((error) => console.warn("[Firebase] saveState:", error?.message || error));
 
-    // Save reports separately to stay well under the 1 MB document limit
+    window.fsSaveCells(nextState.cells);
     window.fsSaveReports(nextState.reports);
+  };
+
+  // Células em documento separado — nunca sobrescrito por saves de relatório/estudo
+  window.fsSaveCells = function (cells) {
+    const list = Array.isArray(cells) ? cells : [];
+    db.collection("renovo")
+      .doc("cells")
+      .set({ list })
+      .catch((error) => console.warn("[Firebase] saveCells:", error?.message || error));
   };
 
   window.fsSaveReports = function (reports) {

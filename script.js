@@ -1430,14 +1430,18 @@ async function bootstrapApp() {
     if (fsData.state) {
       const remoteState = hydrateStateSnapshot(fsData.state);
 
-      // Firestore sempre vence quando carrega com sucesso —
-      // evita que localStorage vazio sobrescreva dados inseridos via console/admin
-      state.cells = remoteState.cells;
+      // Células: doc dedicado renovo/cells — nunca sobrescrito por saves de relatório
+      if (Array.isArray(fsData.cells)) {
+        state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
+      } else {
+        state.cells = remoteState.cells; // legacy (células ainda no doc state)
+      }
+
       state.studies = remoteState.studies;
       state.lastReportId = remoteState.lastReportId;
       state.updatedAt = remoteState.updatedAt;
 
-      // Reports live in a dedicated Firestore doc; hydrate with local images
+      // Relatórios: doc dedicado renovo/reports
       if (Array.isArray(fsData.reports)) {
         try {
           const imgStore = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
