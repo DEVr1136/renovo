@@ -6,7 +6,7 @@ const LOCAL_PDFS_KEY = "renovo_pdfs_v1";
 const ALERTS_KEY = "renovo_alerts_v1";
 const INITIAL_SEED_MARKER_KEY = "renovo_seed_v2_done";
 const CINZA_IMPORT_MARKER_KEY = "renovo_cinza_reports_v2_done";
-const ALL_MEMBERS_SEED_KEY = "renovo_all_members_v1_done";
+const ALL_MEMBERS_SEED_KEY = "renovo_all_members_v2_done";
 const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 // Inicializados de forma assíncrona em bootstrapApp()
@@ -4624,7 +4624,7 @@ function ensureAllCellMembers() {
     "Verde": ["Evelyn","Helloh","Daniel","Kellvem","Hatos","Raiane","Enzo","Ana Lu","Sushinie","Shelcy","Jonas","Kamila","Bruno","Jeferson","Danilo","João Vitor","Jordylan","Tarcyara","Solyan","Huna","Anthony","Alicia","Gaby"],
     "Ekballo": ["Igor","Julya Maria","Maria Eduarda","Pedro","Vitoria","Wallafy","Yasmin","Vitor Gabriel","Manu","Lindsay","Fernanda"],
     "Peregrinos": ["Isabella","Sarah","Roberto","Erick","Isabelle","Willian","Elias","Eloah","Julia Lemos","Helloany"],
-    "Azul": [],
+    "Azul": ["Alexandre","Graciete","Kamilly","Leticia","Joao Guilherme","Francivaldo Lima","Dywly Kelly","Esther Pacheco"],
   };
 
   let changed = false;
