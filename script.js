@@ -1506,7 +1506,11 @@ async function bootstrapApp() {
       if (Array.isArray(fsData.cells)) {
         state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
       } else {
-        state.cells = remoteState.cells; // legacy (células ainda no doc state)
+        // Legacy: células ainda no doc state — migra imediatamente para renovo/cells
+        state.cells = remoteState.cells;
+        if (state.cells.length > 0 && window.fsSaveCells) {
+          window.fsSaveCells(state.cells);
+        }
       }
 
       state.studies = remoteState.studies;

@@ -115,6 +115,17 @@
   // Células em documento separado — nunca sobrescrito por saves de relatório/estudo
   window.fsSaveCells = function (cells) {
     const list = Array.isArray(cells) ? cells : [];
+    if (list.length === 0) {
+      // Nunca sobrescreve com lista vazia — verifica primeiro se já há dados
+      db.collection("renovo").doc("cells").get().then((snap) => {
+        const existing = snap.exists && Array.isArray(snap.data()?.list) ? snap.data().list : [];
+        if (existing.length === 0) {
+          db.collection("renovo").doc("cells").set({ list: [] })
+            .catch((error) => console.warn("[Firebase] saveCells:", error?.message || error));
+        }
+      }).catch(() => {});
+      return;
+    }
     db.collection("renovo")
       .doc("cells")
       .set({ list })
