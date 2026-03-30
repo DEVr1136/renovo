@@ -4606,8 +4606,7 @@ function seedInitialDataIfEmpty() {
 }
 
 function ensureAllCellMembers() {
-  if (localStorage.getItem(ALL_MEMBERS_SEED_KEY) === "done") return;
-
+  // Mapa de membros padrão por célula — usado para restaurar se a célula ficar vazia
   const membersByCellName = {
     "Amarela": ["Leticia","Samuel","Layanne","Rosa","Andreia","Bia","Diego","Juliana","Davi","Weverton","Karla","Weslem","Janaína","Vitória","José"],
     "Rosa": ["Ariane","Alex","Karla","Lara","Vera","Fiorella","Luzimar","Murilo","Karlen","Missikely","Soninha","Mayara","Alessandro"],
@@ -4620,7 +4619,6 @@ function ensureAllCellMembers() {
     "Vinho": ["Jonattham","Marilene","Silvia","Alzira","Adriana","Marilda","Mikaelly","Sabrina","Francisco","Conceição","Jerusa","Izeti","Kauan","José","Ely","Luiza","Etefany"],
     "Logos": ["Thiago","Augusto","Leticia","Ney","Leticia Carvalho","Jenny","Denis","Rian","Gustavo","Phedro","Davi"],
     "GET": ["Miguel","Raíssa","Hugo","Thayssa","Nicoly","John"],
-    "Vermelha": [],
     "Verde": ["Evelyn","Helloh","Daniel","Kellvem","Hatos","Raiane","Enzo","Ana Lu","Sushinie","Shelcy","Jonas","Kamila","Bruno","Jeferson","Danilo","João Vitor","Jordylan","Tarcyara","Solyan","Huna","Anthony","Alicia","Gaby"],
     "Ekballo": ["Igor","Julya Maria","Maria Eduarda","Pedro","Vitoria","Wallafy","Yasmin","Vitor Gabriel","Manu","Lindsay","Fernanda"],
     "Peregrinos": ["Isabella","Sarah","Roberto","Erick","Isabelle","Willian","Elias","Eloah","Julia Lemos","Helloany"],
@@ -4633,22 +4631,17 @@ function ensureAllCellMembers() {
     if (!names.length) continue;
     const cell = state.cells.find((c) => normalizeName(c.name) === normalizeName(cellName));
     if (!cell) continue;
-    const existing = new Set((cell.members || []).map((m) => normalizeName(m.name)));
-    for (const name of names) {
-      if (!existing.has(normalizeName(name))) {
-        cell.members.push({ id: createId(), name, phone: "" });
-        existing.add(normalizeName(name));
-        changed = true;
-      }
-    }
+    // Só restaura se a célula estiver completamente vazia (proteção contra perda de dados)
+    // Não toca em células que já têm membros (respeita exclusões manuais)
+    if ((cell.members || []).length > 0) continue;
+    cell.members = names.map((name) => ({ id: createId(), name, phone: "" }));
+    changed = true;
   }
 
   if (changed) {
     if (window.fsSaveCells) window.fsSaveCells(state.cells);
     saveState(state);
   }
-
-  localStorage.setItem(ALL_MEMBERS_SEED_KEY, "done");
 }
 
 function ensureVinhoReport20260227() {
