@@ -4678,6 +4678,7 @@ function ensureAllCellMembers() {
     "Ekballo": ["Igor","Julya Maria","Maria Eduarda","Pedro","Vitoria","Wallafy","Yasmin","Vitor Gabriel","Manu","Lindsay","Fernanda"],
     "Peregrinos": ["Isabella","Sarah","Roberto","Erick","Isabelle","Willian","Elias","Eloah","Julia Lemos","Helloany"],
     "Azul": ["Alexandre","Graciete","Kamilly","Leticia","Joao Guilherme","Francivaldo Lima","Dywly Kelly","Esther Pacheco"],
+    "Vermelha": ["Bruno","Kamila","Augusto","Manu","Victor","Caleb","Josiel","Glenda","Ana","Rosário","Alice","Daniel","Camila","Kalel","Alex","Cibely","João","Cristiano"],
   };
 
   let changed = false;
