@@ -504,7 +504,7 @@ function bindAppEvents() {
     }
 
     const deleteBtn = e.target.closest(".visitante-delete-btn");
-    if (!deleteBtn || !hasPermission("manageAccess")) return;
+    if (!deleteBtn || !session) return;
     const id = deleteBtn.dataset.id;
     if (!id) return;
     const list = loadVisitantesPub().filter((v) => v.id !== id);
@@ -5027,7 +5027,7 @@ function renderVisitantesList() {
   const search = (document.getElementById("visitantes-search")?.value || "").trim().toLowerCase();
   const selectedCellFilter = String(document.getElementById("visitantes-cell-filter")?.value || "").trim();
   const canConvert = hasPermission("manageMembers");
-  const canDelete = hasPermission("manageAccess");
+  const canDelete = !!session;
   const recurringMap = buildRecurringVisitorsMap();
   const scopedCellIds = session?.role === "coordinator" ? new Set(getAccessibleCells().map((cell) => cell.id)) : null;
 
