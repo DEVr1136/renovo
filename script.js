@@ -6,6 +6,7 @@ const LOCAL_PDFS_KEY = "renovo_pdfs_v1";
 const ALERTS_KEY = "renovo_alerts_v1";
 const INITIAL_SEED_MARKER_KEY = "renovo_seed_v2_done";
 const CINZA_IMPORT_MARKER_KEY = "renovo_cinza_reports_v2_done";
+const ALL_MEMBERS_SEED_KEY = "renovo_all_members_v2_done";
 const MANAGEABLE_ROLES = ["leader", "coordinator", "pastor", "admin"];
 
 // Inicializados de forma assíncrona em bootstrapApp()
@@ -503,7 +504,7 @@ function bindAppEvents() {
     }
 
     const deleteBtn = e.target.closest(".visitante-delete-btn");
-    if (!deleteBtn || !hasPermission("manageAccess")) return;
+    if (!deleteBtn || !session) return;
     const id = deleteBtn.dataset.id;
     if (!id) return;
     const list = loadVisitantesPub().filter((v) => v.id !== id);
@@ -1246,6 +1247,7 @@ function bindAppEvents() {
       visitorNames,
       visitorDetails,
       images: currentImages.slice(),
+      offering: String(formData.get("offering") || "").trim(),
       snack: String(formData.get("snack") || "").trim(),
       discipleship: String(formData.get("discipleship") || "").trim(),
       foods: currentFoodItems.length
@@ -1254,20 +1256,21 @@ function bindAppEvents() {
       createdAt: new Date().toISOString(),
     };
 
-    upsertReport(reportData);
-    state.lastReportId = reportData.id;
-    try { processAbsenceAlerts(reportData, cell); } catch (_) {}
+    const savedReport = upsertReport(reportData);
+    state.lastReportId = savedReport.id;
+    try { processAbsenceAlerts(savedReport, cell); } catch (_) {}
     persistAndRender();
+    syncReportToRemote(savedReport);
 
-    const presentIds = new Set(reportData.presentMemberIds);
+    const presentIds = new Set(savedReport.presentMemberIds);
     const presentCount = cell.members.filter((m) => presentIds.has(m.id)).length;
     const absentCount = cell.members.length - presentCount;
-    reportOutput.value = buildReportText(reportData, cell);
-    drawReportChart(presentCount, absentCount, reportData.visitorsCount);
+    reportOutput.value = buildReportText(savedReport, cell);
+    drawReportChart(presentCount, absentCount, savedReport.visitorsCount);
     renderReportHistory();
     drawAverageCharts();
     drawLineChart(cellId);
-    renderReportImages(reportData.images);
+    renderReportImages(savedReport.images);
 
     if (generateReportButton) {
       generateReportButton.textContent = "Gerar novo relatorio";
@@ -1291,6 +1294,7 @@ function bindAppEvents() {
       state.reports = state.reports.filter((r) => r.id !== reportId);
       if (state.lastReportId === reportId) state.lastReportId = "";
       saveState(state);
+      deleteReportFromRemote(reportId);
       render();
       return;
     }
@@ -1330,6 +1334,31 @@ function bindAppEvents() {
     const actionButton = clickTarget.closest("button[data-cell-action]");
     if (actionButton) {
       const action = String(actionButton.dataset.cellAction || "");
+      if (action === "delete-member") {
+        if (!hasPermission("manageMembers")) {
+          return;
+        }
+
+        const cellId = String(actionButton.dataset.cellId || "");
+        const memberId = String(actionButton.dataset.memberId || "");
+        const cell = getCellById(cellId);
+        if (!cell) return;
+
+        const member = (cell.members || []).find((m) => m.id === memberId);
+        if (!member) return;
+
+        const confirmed =
+          typeof window.confirm === "function"
+            ? window.confirm(`Excluir o membro "${member.name}" da celula ${cell.name}?`)
+            : true;
+
+        if (!confirmed) return;
+
+        cell.members = cell.members.filter((m) => m.id !== memberId);
+        persistAndRender();
+        return;
+      }
+
       if (action === "delete") {
         if (!hasPermission("deleteCell")) {
           return;
@@ -1462,6 +1491,8 @@ async function bootstrapApp() {
     localStorage.setItem("renovo_reset_v1", "done");
   }
 
+  const cached = loadState();
+
   try {
     const loadRemoteData =
       typeof window.fsLoadAll === "function"
@@ -1473,46 +1504,64 @@ async function bootstrapApp() {
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
     ]);
 
+    const hasRemoteSnapshot =
+      Boolean(fsData.state) ||
+      Array.isArray(fsData.cells) ||
+      Array.isArray(fsData.reports) ||
+      Array.isArray(fsData.users) ||
+      Array.isArray(fsData.visitantes);
+
     // Estado (células, relatórios, estudos)
-    if (fsData.state) {
-      const remoteState = hydrateStateSnapshot(fsData.state);
+    if (hasRemoteSnapshot) {
+      const remoteState = fsData.state
+        ? hydrateStateSnapshot(fsData.state)
+        : { cells: [], reports: [], studies: [], lastReportId: null, updatedAt: null };
 
       // Células: doc dedicado renovo/cells — nunca sobrescrito por saves de relatório
       if (Array.isArray(fsData.cells)) {
         state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
       } else {
-        state.cells = remoteState.cells; // legacy (células ainda no doc state)
+        // Legacy: células ainda no doc state — migra imediatamente para renovo/cells
+        state.cells = remoteState.cells;
+        if (state.cells.length > 0 && window.fsSaveCells) {
+          window.fsSaveCells(state.cells);
+        }
       }
 
       state.studies = remoteState.studies;
       state.lastReportId = remoteState.lastReportId;
       state.updatedAt = remoteState.updatedAt;
 
-      // Relatórios: doc dedicado renovo/reports
+      // Relatorios: carrega do Firestore e preserva qualquer copia local mais nova
+      let remoteReports = [];
       if (Array.isArray(fsData.reports)) {
         try {
           const imgStore = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
-          state.reports = fsData.reports
+          remoteReports = fsData.reports
             .map(normalizeReport).filter(Boolean)
             .map((r) => Object.assign({}, r, { images: imgStore[r.id] || [] }));
         } catch (_) {
-          state.reports = fsData.reports.map(normalizeReport).filter(Boolean);
+          remoteReports = fsData.reports.map(normalizeReport).filter(Boolean);
         }
       } else {
-        state.reports = remoteState.reports;
+        remoteReports = remoteState.reports;
+      }
+
+      state.reports = mergeReportSnapshots(remoteReports, cached.reports);
+      if (hasNewerReports(state.reports, remoteReports) && window.fsSaveReports) {
+        window.fsSaveReports(state.reports);
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stripStateForStorage(state)));
     } else {
       // Firebase vazio — carrega localStorage e faz upload imediato para o Firestore
-      const cached = loadState();
       state.cells = cached.cells;
       state.reports = cached.reports;
       state.studies = cached.studies;
       state.lastReportId = cached.lastReportId;
       state.updatedAt = cached.updatedAt;
       // Migração: sobe dados locais para o Firestore
-      if (window.fsSaveState) window.fsSaveState(state);
+      if (window.fsSaveState) window.fsSaveState(state, { syncReports: true });
     }
 
     // Usuários
@@ -1537,7 +1586,6 @@ async function bootstrapApp() {
     }
   } catch (_) {
     // Fallback total para localStorage (offline)
-    const cached = loadState();
     state.cells = cached.cells;
     state.reports = cached.reports;
     state.studies = cached.studies;
@@ -1549,7 +1597,9 @@ async function bootstrapApp() {
   ensureDefaultUsers();
   try { runInitialSeedOnce(); } catch (e) { console.warn("[seed] erro:", e); }
   try { ensureMinistryStructure(); } catch (e) { console.warn("[structure] erro:", e); }
+  try { ensureLeaderAccounts(); } catch (e) { console.warn("[leader-accounts] erro:", e); }
   try { ensureCinzaReportsImport(); } catch (e) { console.warn("[cinza-import] erro:", e); }
+  try { ensureAllCellMembers(); } catch (e) { console.warn("[all-members] erro:", e); }
   try { ensureVinhoReport20260227(); } catch (e) { console.warn("[vinho-2026-02-27] erro:", e); }
   try { syncAbsenceAlertsWithReports(state); } catch (e) { console.warn("[alerts] erro:", e); }
   session = loadSession();
@@ -1687,6 +1737,61 @@ function ensureMinistryStructure() {
   }
 }
 
+function ensureLeaderAccounts() {
+  const leaderDefs = [
+    { name: "Leticia",        username: "leticia",        assignedCellName: "Amarela" },
+    { name: "Alex",           username: "alex",           assignedCellName: "Rosa" },
+    { name: "Ariane",         username: "ariane",         assignedCellName: "Rosa" },
+    { name: "Jander",         username: "jander",         assignedCellName: "Cinza" },
+    { name: "Aline",          username: "aline",          assignedCellName: "Cinza" },
+    { name: "Filipe",         username: "filipe",         assignedCellName: "Preta" },
+    { name: "Sabrina",        username: "sabrina",        assignedCellName: "Preta" },
+    { name: "Joana",          username: "joana",          assignedCellName: "Branca" },
+    { name: "Fernando",       username: "fernando",       assignedCellName: "Laranja" },
+    { name: "Elioneide",      username: "elioneide",      assignedCellName: "Laranja" },
+    { name: "Chirlene",       username: "chirlene",       assignedCellName: "Visão de Águia" },
+    { name: "Karina",         username: "karina",         assignedCellName: "Lilás" },
+    { name: "Jeniffer",       username: "jeniffer",       assignedCellName: "Lilás" },
+    { name: "Jonattham",      username: "jonattham",      assignedCellName: "Vinho" },
+    { name: "Marilene",       username: "marilene",       assignedCellName: "Vinho" },
+    { name: "Francinaldo",    username: "francinaldo",    assignedCellName: "Azul" },
+    { name: "Alexandre",      username: "alexandre",      assignedCellName: "Azul" },
+    { name: "Thiago",         username: "thiago",         assignedCellName: "Logos" },
+    { name: "Miguel",         username: "miguel",         assignedCellName: "GET" },
+    { name: "Raissa",         username: "raissa",         assignedCellName: "GET" },
+    { name: "Evelyn",         username: "evelyn",         assignedCellName: "Verde" },
+    { name: "Pedro",          username: "pedro",          assignedCellName: "Ekballo" },
+    { name: "Clara Vitoria",  username: "clara.vitoria",  assignedCellName: "Ekballo" },
+    { name: "Izabella",       username: "izabella",       assignedCellName: "Peregrinos" },
+    { name: "Sara",           username: "sara",           assignedCellName: "Peregrinos" },
+    { name: "Emanuelly",      username: "emanuelly",      assignedCellName: "Vermelha" },
+  ];
+
+  let changed = false;
+  for (const def of leaderDefs) {
+    const exists = users.some((u) => normalizeUsername(u.username) === normalizeUsername(def.username));
+    if (!exists) {
+      users.push({
+        id: createId(),
+        name: def.name,
+        username: def.username,
+        password: "123456",
+        role: "leader",
+        assignedCellName: def.assignedCellName,
+        scopeCellNames: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      });
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    saveUsers(users);
+    if (window.fsSaveUsers) window.fsSaveUsers(users);
+  }
+}
+
 function ensureCinzaReportsImport() {
   if (localStorage.getItem(CINZA_IMPORT_MARKER_KEY) === "done") {
     return;
@@ -1806,7 +1911,7 @@ function ensureCinzaReportsImport() {
   });
 
   if (changed) {
-    saveState(state);
+    saveState(state, { syncReports: true });
   }
   localStorage.setItem(CINZA_IMPORT_MARKER_KEY, "done");
 }
@@ -2364,6 +2469,38 @@ function persistAndRender() {
   render();
 }
 
+function runRemoteTask(label, action) {
+  try {
+    const pending = action();
+    if (pending && typeof pending.catch === "function") {
+      pending.catch((error) => console.warn(`[Firebase] ${label}:`, error?.message || error));
+    }
+  } catch (error) {
+    console.warn(`[Firebase] ${label}:`, error?.message || error);
+  }
+}
+
+function syncReportToRemote(report) {
+  if (!report || typeof window.fsSaveReport !== "function") {
+    return;
+  }
+  runRemoteTask("saveReport", () => window.fsSaveReport(report));
+}
+
+function deleteReportFromRemote(reportId) {
+  if (!reportId || typeof window.fsDeleteReport !== "function") {
+    return;
+  }
+  runRemoteTask("deleteReport", () => window.fsDeleteReport(reportId));
+}
+
+function deleteCellReportsFromRemote(cellId) {
+  if (!cellId || typeof window.fsDeleteReportsByCell !== "function") {
+    return;
+  }
+  runRemoteTask("deleteReportsByCell", () => window.fsDeleteReportsByCell(cellId));
+}
+
 function render() {
   if (!session) {
     return;
@@ -2560,6 +2697,7 @@ function renderReportCellOptions() {
 function renderCells() {
   const visibleCells = getAccessibleCells();
   const canDeleteCell = hasPermission("deleteCell");
+  const canManageMembers = hasPermission("manageMembers");
 
   if (visibleCells.length === 0) {
     cellsList.innerHTML = '<p class="empty">Nenhuma celula cadastrada ainda.</p>';
@@ -2578,7 +2716,10 @@ function renderCells() {
           : `<ul class="members">${cell.members
               .map((member) => {
                 const phone = member.phone ? ` - ${escapeHtml(member.phone)}` : "";
-                return `<li>${escapeHtml(member.name)}${phone}</li>`;
+                const deleteBtn = canManageMembers
+                  ? `<button type="button" class="ghost-btn tiny-btn danger-btn member-delete-btn" data-cell-action="delete-member" data-cell-id="${escapeHtml(cell.id)}" data-member-id="${escapeHtml(member.id)}" title="Excluir membro">✕</button>`
+                  : "";
+                return `<li class="member-item">${escapeHtml(member.name)}${phone}${deleteBtn}</li>`;
               })
               .join("")}</ul>`;
       const actionsMarkup = canDeleteCell
@@ -2747,6 +2888,71 @@ function parseReportDateToTime(reportDate) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getReportMergeKey(report) {
+  const cellId = String(report?.cellId || "").trim();
+  const date = String(report?.date || "").trim();
+  if (cellId && date) {
+    return `cell:${cellId}|${date}`;
+  }
+
+  const id = String(report?.id || "").trim();
+  return id ? `id:${id}` : "";
+}
+
+function getReportFreshnessTime(report) {
+  const updatedTime = new Date(report?.updatedAt || 0).getTime();
+  if (Number.isFinite(updatedTime) && updatedTime > 0) {
+    return updatedTime;
+  }
+
+  const createdTime = new Date(report?.createdAt || 0).getTime();
+  if (Number.isFinite(createdTime) && createdTime > 0) {
+    return createdTime;
+  }
+
+  return parseReportDateToTime(report?.date);
+}
+
+function mergeReportSnapshots(primaryReports, fallbackReports) {
+  const merged = new Map();
+
+  [fallbackReports, primaryReports].forEach((list) => {
+    (Array.isArray(list) ? list : []).forEach((report) => {
+      const key = getReportMergeKey(report);
+      if (!key) {
+        return;
+      }
+
+      const current = merged.get(key);
+      if (!current || getReportFreshnessTime(report) >= getReportFreshnessTime(current)) {
+        merged.set(key, report);
+      }
+    });
+  });
+
+  return Array.from(merged.values());
+}
+
+function hasNewerReports(candidateReports, baselineReports) {
+  const baselineMap = new Map();
+  (Array.isArray(baselineReports) ? baselineReports : []).forEach((report) => {
+    const key = getReportMergeKey(report);
+    if (key) {
+      baselineMap.set(key, report);
+    }
+  });
+
+  return (Array.isArray(candidateReports) ? candidateReports : []).some((report) => {
+    const key = getReportMergeKey(report);
+    if (!key) {
+      return false;
+    }
+
+    const baseline = baselineMap.get(key);
+    return !baseline || getReportFreshnessTime(report) > getReportFreshnessTime(baseline);
+  });
+}
+
 function getReportStats(report) {
   const cell = getCellById(report?.cellId);
   const present = Array.isArray(report?.presentMemberIds) ? report.presentMemberIds.length : 0;
@@ -2792,6 +2998,8 @@ function loadSavedReportIfExists() {
   renderFirstVisitList();
   currentImages = Array.isArray(report.images) ? report.images.slice() : [];
   renderImagesList();
+  const offeringInput = document.getElementById("offering-input");
+  if (offeringInput) offeringInput.value = report.offering || "";
   setFormFieldValue(reportForm, "snack", report.snack || "");
   setFormFieldValue(reportForm, "discipleship", report.discipleship || "");
   const foodsStr = String(report.foods || "").trim();
@@ -2833,6 +3041,7 @@ function applyReportMode() {
     "visitorsCount",
     "visitorNames",
     "communionMinutes",
+    "offering",
     "snack",
     "discipleship",
     "foodsToggle",
@@ -3126,17 +3335,23 @@ function upsertReport(reportData) {
   );
   if (existingIndex === -1) {
     state.reports.push(reportData);
-    return;
+    return reportData;
   }
 
   const existing = state.reports[existingIndex];
-  state.reports[existingIndex] = {
+  const updatedReport = {
     ...reportData,
     id: existing.id,
     createdAt: existing.createdAt,
     updatedAt: new Date().toISOString(),
   };
-  reportData.id = existing.id;
+  state.reports[existingIndex] = updatedReport;
+  Object.assign(reportData, {
+    id: updatedReport.id,
+    createdAt: updatedReport.createdAt,
+    updatedAt: updatedReport.updatedAt,
+  });
+  return updatedReport;
 }
 
 function findReport(cellId, date) {
@@ -3161,6 +3376,9 @@ function deleteCellAndRelated(cellId) {
 
   const removedReportIds = new Set(state.reports.filter((report) => report.cellId === cellId).map((report) => report.id));
   state.reports = state.reports.filter((report) => report.cellId !== cellId);
+  if (removedReportIds.size > 0) {
+    deleteCellReportsFromRemote(cellId);
+  }
 
   if (removedReportIds.has(state.lastReportId)) {
     const latest = state.reports.slice().sort(compareReportsDesc)[0] || null;
@@ -3228,9 +3446,8 @@ function applyInitialReportContext() {
     reportCellSelect.value = cells[0].id;
   }
 
-  const latestForCell = [...state.reports].reverse().find((report) => report.cellId === reportCellSelect.value);
   if (!reportDateInput.value) {
-    reportDateInput.value = latestForCell ? latestForCell.date : todayIsoDate();
+    reportDateInput.value = todayIsoDate();
   }
 
   loadSavedReportIfExists();
@@ -3674,7 +3891,7 @@ function renderVisitantesCellFilterOptions() {
   select.value = hasPrevious ? previousValue : "";
 }
 
-function saveState(nextState) {
+function saveState(nextState, options = {}) {
   const stampedState = Object.assign({}, nextState, {
     updatedAt: new Date().toISOString(),
   });
@@ -3695,7 +3912,7 @@ function saveState(nextState) {
   // Salva estado sem imagens/PDFs no localStorage principal (evita quota exceeded)
   const stripped = stripStateForStorage(stampedState);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped)); } catch (_) {}
-  if (window.fsSaveState) window.fsSaveState(stampedState);
+  if (window.fsSaveState) window.fsSaveState(stampedState, options);
 }
 
 function stripStateForStorage(nextState) {
@@ -4565,9 +4782,49 @@ function seedInitialDataIfEmpty() {
     ],
   });
 
-  saveState(state);
+  saveState(state, { syncReports: true });
 
   saveUsers(users);
+}
+
+function ensureAllCellMembers() {
+  // Mapa de membros padrão por célula — usado para restaurar se a célula ficar vazia
+  const membersByCellName = {
+    "Amarela": ["Leticia","Samuel","Layanne","Rosa","Andreia","Bia","Diego","Juliana","Davi","Weverton","Karla","Weslem","Janaína","Vitória","José"],
+    "Rosa": ["Ariane","Alex","Karla","Lara","Vera","Fiorella","Luzimar","Murilo","Karlen","Missikely","Soninha","Mayara","Alessandro"],
+    "Cinza": ["Jander","Aline","Amanda Rayssa","Amanda","Daniel","Mariana","Ray","Mayara","Samuel","Luiz","Manu","Liz","Rebeca"],
+    "Preta": ["Filipe","Sabrina","Ian Vieira","Mikaelly","Pedro","Vitor","Guilherme","Ana","Eliel","Thifanny","Danilo","Soraia","Josiel","Jhonatan","Mikael","Deivid","Rebeca","Luiz Henrique","Leo","Letícia","Faby","Andrey","Dryka","Davi","Sthefany","Giovanna","Endriw"],
+    "Branca": ["Joana","Josué","Vânia","Vitória","Maria Alice","Maria Lopes","Elci","Patrícia","Conceição","Cel","Kelly","Dyene","Tania","Cleu"],
+    "Laranja": ["Fernando","Elioneide","Nelson","Rosely","Ary","Fernanda","Hudson","Célia","Viviane"],
+    "Visão de Águia": ["Chirlene","Kelma","Marta","Viviane","Denise","Geisy","Ana Lúcia","Meri Jany","Ney","Ezequiel","Osmar","Luiz"],
+    "Lilás": ["Karina","Jhennifer","Renata","Antonio","Nazaré","Rogério","Fabiana","Eva","Renan","Aparecida","Flávio","Alice","Gabriel","Vitória Raissa","Iasmin","Juliana","Rose","Leilane","Robson"],
+    "Vinho": ["Jonattham","Marilene","Silvia","Alzira","Adriana","Marilda","Mikaelly","Sabrina","Francisco","Conceição","Jerusa","Izeti","Kauan","José","Ely","Luiza","Etefany"],
+    "Logos": ["Thiago","Augusto","Leticia","Ney","Leticia Carvalho","Jenny","Denis","Rian","Gustavo","Phedro","Davi"],
+    "GET": ["Miguel","Raíssa","Hugo","Thayssa","Nicoly","John"],
+    "Verde": ["Evelyn","Helloh","Daniel","Kellvem","Hatos","Raiane","Enzo","Ana Lu","Sushinie","Shelcy","Jonas","Kamila","Bruno","Jeferson","Danilo","João Vitor","Jordylan","Tarcyara","Solyan","Huna","Anthony","Alicia","Gaby"],
+    "Ekballo": ["Igor","Julya Maria","Maria Eduarda","Pedro","Vitoria","Wallafy","Yasmin","Vitor Gabriel","Manu","Lindsay","Fernanda"],
+    "Peregrinos": ["Isabella","Sarah","Roberto","Erick","Isabelle","Willian","Elias","Eloah","Julia Lemos","Helloany"],
+    "Azul": ["Alexandre","Graciete","Kamilly","Leticia","Joao Guilherme","Francivaldo Lima","Dywly Kelly","Esther Pacheco"],
+    "Vermelha": ["Bruno","Kamila","Augusto","Manu","Victor","Caleb","Josiel","Glenda","Ana","Rosário","Alice","Daniel","Camila","Kalel","Alex","Cibely","João","Cristiano"],
+  };
+
+  let changed = false;
+
+  for (const [cellName, names] of Object.entries(membersByCellName)) {
+    if (!names.length) continue;
+    const cell = state.cells.find((c) => normalizeName(c.name) === normalizeName(cellName));
+    if (!cell) continue;
+    // Só restaura se a célula estiver completamente vazia (proteção contra perda de dados)
+    // Não toca em células que já têm membros (respeita exclusões manuais)
+    if ((cell.members || []).length > 0) continue;
+    cell.members = names.map((name) => ({ id: createId(), name, phone: "" }));
+    changed = true;
+  }
+
+  if (changed) {
+    if (window.fsSaveCells) window.fsSaveCells(state.cells);
+    saveState(state);
+  }
 }
 
 function ensureVinhoReport20260227() {
@@ -4648,7 +4905,7 @@ function ensureVinhoReport20260227() {
   }
 
   if (changed) {
-    saveState(state);
+    saveState(state, { syncReports: true });
   }
 }
 
@@ -4893,7 +5150,7 @@ function renderVisitantesList() {
   const search = (document.getElementById("visitantes-search")?.value || "").trim().toLowerCase();
   const selectedCellFilter = String(document.getElementById("visitantes-cell-filter")?.value || "").trim();
   const canConvert = hasPermission("manageMembers");
-  const canDelete = hasPermission("manageAccess");
+  const canDelete = !!session;
   const recurringMap = buildRecurringVisitorsMap();
   const scopedCellIds = session?.role === "coordinator" ? new Set(getAccessibleCells().map((cell) => cell.id)) : null;
 

@@ -7,7 +7,10 @@
 
     window.fsSaveState = function () {};
     window.fsSaveCells = function () {};
-    window.fsSaveReports = function () {};
+    window.fsSaveReports = async function () {};
+    window.fsSaveReport = async function () {};
+    window.fsDeleteReport = async function () {};
+    window.fsDeleteReportsByCell = async function () {};
     window.fsSaveUsers = function () {};
     window.fsSaveVisitantes = function () {};
     window.fsUploadStudyPdf = async function () {
@@ -53,30 +56,211 @@
     console.warn("[Firebase] Storage indisponivel:", error?.message || error);
   }
 
+  const RENOVO_COLLECTION = "renovo";
+  const REPORTS_LEGACY_DOC = "reports";
+  const REPORTS_META_DOC = "reports_meta";
+  const REPORT_DOC_PREFIX = "report__";
+  const REPORT_DOC_END = `${REPORT_DOC_PREFIX}\uf8ff`;
+
+  function getRenovoCollection() {
+    return db.collection(RENOVO_COLLECTION);
+  }
+
+  function getReportsMetaRef() {
+    return getRenovoCollection().doc(REPORTS_META_DOC);
+  }
+
+  function getReportDocId(reportId) {
+    const normalizedId = String(reportId || "").trim();
+    return normalizedId ? `${REPORT_DOC_PREFIX}${normalizedId}` : "";
+  }
+
+  function getReportDocRef(reportId) {
+    const docId = getReportDocId(reportId);
+    return docId ? getRenovoCollection().doc(docId) : null;
+  }
+
+  function getComparableReportTime(report) {
+    const updatedTime = new Date(report?.updatedAt || 0).getTime();
+    if (Number.isFinite(updatedTime) && updatedTime > 0) {
+      return updatedTime;
+    }
+
+    const createdTime = new Date(report?.createdAt || 0).getTime();
+    if (Number.isFinite(createdTime) && createdTime > 0) {
+      return createdTime;
+    }
+
+    return 0;
+  }
+
+  function getReportIdentity(report) {
+    const id = String(report?.id || "").trim();
+    if (id) {
+      return `id:${id}`;
+    }
+
+    const cellId = String(report?.cellId || "").trim();
+    const date = String(report?.date || "").trim();
+    return cellId || date ? `cell:${cellId}|${date}` : "";
+  }
+
+  function sanitizeReportForRemote(report) {
+    if (!report || typeof report !== "object") {
+      return null;
+    }
+
+    const id = String(report.id || "").trim();
+    const cellId = String(report.cellId || "").trim();
+    const date = String(report.date || "").trim();
+    if (!id || !cellId || !date) {
+      return null;
+    }
+
+    return Object.assign({}, report, {
+      id,
+      cellId,
+      date,
+      images: [],
+    });
+  }
+
+  async function markReportsStorageMode(reportCount) {
+    try {
+      await getReportsMetaRef().set(
+        {
+          storageMode: "per_doc",
+          migratedAt: new Date().toISOString(),
+          reportCount: Number.isFinite(reportCount) ? reportCount : null,
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.warn("[Firebase] reportsMeta:", error?.message || error);
+    }
+  }
+
+  async function loadPerDocReports() {
+    const documentId = firebase.firestore.FieldPath.documentId();
+    const snapshot = await getRenovoCollection()
+      .orderBy(documentId)
+      .startAt(REPORT_DOC_PREFIX)
+      .endAt(REPORT_DOC_END)
+      .get();
+
+    return snapshot.docs
+      .map((doc) => sanitizeReportForRemote(doc.data()))
+      .filter(Boolean);
+  }
+
+  async function upsertReportDoc(report) {
+    const payload = sanitizeReportForRemote(report);
+    const ref = getReportDocRef(payload?.id);
+    if (!payload || !ref) {
+      return false;
+    }
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        if (snapshot.exists) {
+          const remotePayload = sanitizeReportForRemote(snapshot.data()) || {};
+          if (getComparableReportTime(remotePayload) > getComparableReportTime(payload)) {
+            return;
+          }
+        }
+
+        transaction.set(ref, payload);
+      });
+      return true;
+    } catch (error) {
+      console.warn("[Firebase] saveReport:", error?.message || error);
+      return false;
+    }
+  }
+
+  async function ensurePerDocReports(reports) {
+    const list = Array.isArray(reports)
+      ? reports.map((report) => sanitizeReportForRemote(report)).filter(Boolean)
+      : [];
+
+    for (const report of list) {
+      const ok = await upsertReportDoc(report);
+      if (!ok) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function mergeReports(primaryReports, fallbackReports) {
+    const merged = new Map();
+
+    [fallbackReports, primaryReports].forEach((list) => {
+      (Array.isArray(list) ? list : []).forEach((report) => {
+        const normalized = sanitizeReportForRemote(report);
+        if (!normalized) {
+          return;
+        }
+
+        const key = getReportIdentity(normalized);
+        if (!key) {
+          return;
+        }
+
+        const current = merged.get(key);
+        if (!current || getComparableReportTime(normalized) >= getComparableReportTime(current)) {
+          merged.set(key, normalized);
+        }
+      });
+    });
+
+    return Array.from(merged.values());
+  }
+
   window.fsLoadAll = async function () {
     try {
-      const [stateDoc, cellsDoc, reportsDoc, usersDoc, visitantesDoc] = await Promise.all([
-        db.collection("renovo").doc("state").get(),
-        db.collection("renovo").doc("cells").get(),
-        db.collection("renovo").doc("reports").get(),
-        db.collection("renovo").doc("users").get(),
-        db.collection("renovo").doc("visitantes").get(),
+      const [stateDoc, cellsDoc, reportsDoc, usersDoc, visitantesDoc, reportsMetaDoc, perDocReports] = await Promise.all([
+        getRenovoCollection().doc("state").get(),
+        getRenovoCollection().doc("cells").get(),
+        getRenovoCollection().doc(REPORTS_LEGACY_DOC).get(),
+        getRenovoCollection().doc("users").get(),
+        getRenovoCollection().doc("visitantes").get(),
+        getReportsMetaRef().get(),
+        loadPerDocReports().catch((error) => {
+          console.warn("[Firebase] Falha ao carregar relatorios por documento:", error?.message || error);
+          return null;
+        }),
       ]);
 
-      // Cells: prefer dedicated doc; fall back to legacy cells inside state doc
       let cells = null;
       if (cellsDoc.exists) {
         cells = Array.isArray(cellsDoc.data().list) ? cellsDoc.data().list : [];
       } else if (stateDoc.exists && Array.isArray(stateDoc.data().cells)) {
-        cells = stateDoc.data().cells; // legacy — migrado no próximo save
+        cells = stateDoc.data().cells;
       }
 
-      // Reports: prefer dedicated doc; fall back to legacy reports inside state doc
       let reports = null;
-      if (reportsDoc.exists) {
-        reports = Array.isArray(reportsDoc.data().list) ? reportsDoc.data().list : [];
-      } else if (stateDoc.exists && Array.isArray(stateDoc.data().reports)) {
-        reports = stateDoc.data().reports; // legacy — migrado no próximo save
+      const hasLegacyReportsSource =
+        reportsDoc.exists || (stateDoc.exists && Array.isArray(stateDoc.data().reports));
+      const legacyReports = reportsDoc.exists
+        ? (Array.isArray(reportsDoc.data().list) ? reportsDoc.data().list : [])
+        : (stateDoc.exists && Array.isArray(stateDoc.data().reports) ? stateDoc.data().reports : []);
+      const perDocModeReady = reportsMetaDoc.exists && reportsMetaDoc.data()?.storageMode === "per_doc";
+
+      if (perDocModeReady && Array.isArray(perDocReports)) {
+        reports = perDocReports;
+      } else if ((Array.isArray(perDocReports) && perDocReports.length) || legacyReports.length) {
+        reports = mergeReports(Array.isArray(perDocReports) ? perDocReports : [], legacyReports);
+        const migrationOk = await ensurePerDocReports(reports);
+        if (migrationOk) {
+          await markReportsStorageMode(reports.length);
+        }
+      } else if (perDocModeReady && legacyReports.length) {
+        reports = legacyReports;
+      } else if (hasLegacyReportsSource) {
+        reports = [];
       }
 
       return {
@@ -92,9 +276,10 @@
     }
   };
 
-  // Salva apenas estudos + metadados — células e relatórios têm documentos próprios
-  window.fsSaveState = function (nextState) {
+  // Save studies + metadata. Cells and reports are persisted separately.
+  window.fsSaveState = function (nextState, options) {
     if (!nextState || typeof nextState !== "object") return;
+    const syncReports = options?.syncReports === true;
 
     const stateDoc = {
       studies: Array.isArray(nextState.studies)
@@ -103,49 +288,135 @@
       lastReportId: nextState.lastReportId || null,
       updatedAt: nextState.updatedAt || null,
     };
-    db.collection("renovo")
+
+    getRenovoCollection()
       .doc("state")
       .set(stateDoc)
       .catch((error) => console.warn("[Firebase] saveState:", error?.message || error));
 
     window.fsSaveCells(nextState.cells);
-    window.fsSaveReports(nextState.reports);
+    if (syncReports) {
+      window.fsSaveReports(nextState.reports);
+    }
   };
 
-  // Células em documento separado — nunca sobrescrito por saves de relatório/estudo
+  // Cells stay in a dedicated document and are not overwritten by report saves.
   window.fsSaveCells = function (cells) {
     const list = Array.isArray(cells) ? cells : [];
-    db.collection("renovo")
+    if (list.length === 0) {
+      getRenovoCollection().doc("cells").get().then((snap) => {
+        const existing = snap.exists && Array.isArray(snap.data()?.list) ? snap.data().list : [];
+        if (existing.length === 0) {
+          getRenovoCollection().doc("cells").set({ list: [] })
+            .catch((error) => console.warn("[Firebase] saveCells:", error?.message || error));
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    getRenovoCollection()
       .doc("cells")
       .set({ list })
       .catch((error) => console.warn("[Firebase] saveCells:", error?.message || error));
   };
 
-  window.fsSaveReports = function (reports) {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 180);
-    const cutoffStr = cutoff.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  window.fsSaveReports = async function (reports) {
+    const list = Array.isArray(reports) ? reports : [];
+    if (!list.length) {
+      return;
+    }
 
-    const list = Array.isArray(reports)
-      ? reports
-          .filter((r) => !r.date || r.date >= cutoffStr)
-          .map((r) => Object.assign({}, r, { images: [] }))
-      : [];
-    db.collection("renovo")
-      .doc("reports")
-      .set({ list })
-      .catch((error) => console.warn("[Firebase] saveReports:", error?.message || error));
+    const synced = await ensurePerDocReports(list);
+    if (synced) {
+      await markReportsStorageMode(list.length);
+    }
+  };
+
+  window.fsSaveReport = async function (report) {
+    const saved = await upsertReportDoc(report);
+    if (saved) {
+      await markReportsStorageMode(null);
+    }
+  };
+
+  window.fsDeleteReport = async function (reportId) {
+    const ref = getReportDocRef(reportId);
+    if (!ref) {
+      return;
+    }
+
+    try {
+      await ref.delete();
+    } catch (error) {
+      console.warn("[Firebase] deleteReport:", error?.message || error);
+    }
+  };
+
+  window.fsDeleteReportsByCell = async function (cellId) {
+    const normalizedCellId = String(cellId || "").trim();
+    if (!normalizedCellId) {
+      return;
+    }
+
+    try {
+      const snapshot = await getRenovoCollection()
+        .where("cellId", "==", normalizedCellId)
+        .get();
+
+      if (snapshot.empty) {
+        return;
+      }
+
+      let batch = db.batch();
+      let batchSize = 0;
+      const commits = [];
+
+      snapshot.docs.forEach((doc) => {
+        if (!doc.id.startsWith(REPORT_DOC_PREFIX)) {
+          return;
+        }
+
+        batch.delete(doc.ref);
+        batchSize += 1;
+
+        if (batchSize === 450) {
+          commits.push(batch.commit());
+          batch = db.batch();
+          batchSize = 0;
+        }
+      });
+
+      if (batchSize > 0) {
+        commits.push(batch.commit());
+      }
+
+      await Promise.all(commits);
+    } catch (error) {
+      console.warn("[Firebase] deleteReportsByCell:", error?.message || error);
+    }
   };
 
   window.fsSaveUsers = function (nextUsers) {
-    db.collection("renovo")
+    const list = Array.isArray(nextUsers) ? nextUsers : [];
+    if (list.length === 0) {
+      getRenovoCollection().doc("users").get().then((snap) => {
+        const existing = snap.exists && Array.isArray(snap.data()?.list) ? snap.data().list : [];
+        if (existing.length === 0) {
+          getRenovoCollection().doc("users").set({ list: [] })
+            .catch((error) => console.warn("[Firebase] saveUsers:", error?.message || error));
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    getRenovoCollection()
       .doc("users")
-      .set({ list: nextUsers })
+      .set({ list })
       .catch((error) => console.warn("[Firebase] saveUsers:", error?.message || error));
   };
 
   window.fsSaveVisitantes = function (list) {
-    db.collection("renovo")
+    getRenovoCollection()
       .doc("visitantes")
       .set({ list })
       .catch((error) => console.warn("[Firebase] saveVisitantes:", error?.message || error));

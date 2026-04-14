@@ -954,6 +954,25 @@ button:hover {
   margin-bottom: 0.32rem;
 }
 
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.member-delete-btn {
+  margin-left: auto;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.member-delete-btn:hover {
+  opacity: 1;
+}
+
 .empty {
   padding: 0.9rem;
   border: 1px dashed var(--line);

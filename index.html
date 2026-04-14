@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Renovo Celulas</title>
     <meta name="theme-color" content="#8b0d12" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="icon" type="image/png" href="icon.png" />
@@ -81,17 +82,6 @@
           </button>
         </section>
 
-        <footer class="home-footer">
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLScnKFQM1_-f49shs8Lr8iD6ceOvCv0DE81XFWyYnHMPi2VQeQ/viewform"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="bug-report-link"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-            Relatar um erro
-          </a>
-        </footer>
       </main>
     </div>
 
@@ -314,6 +304,10 @@
           </label>
           <button type="submit">Adicionar membro</button>
         </form>
+        <hr style="margin:1rem 0;border:none;border-top:1px solid var(--line)" />
+        <button type="button" id="view-cells-card" class="ghost-btn" style="width:100%;text-align:left;padding:0.5rem 0.25rem;font-size:0.9rem">
+          &#128101; Ver e excluir membros das celulas
+        </button>
       </div>
     </div>
 
@@ -438,6 +432,11 @@
                 <label class="yn-option"><input type="radio" name="discipleship" value="Não" /> Não</label>
               </div>
             </div>
+
+            <label>
+              Oferta recebida (R$)
+              <input type="number" name="offering" id="offering-input" min="0" step="0.01" placeholder="0,00" />
+            </label>
 
             <div class="yn-field" id="foods-section">
               <div class="yn-field-head">
@@ -702,10 +701,26 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
-            const registration = await navigator.serviceWorker.register("./service-worker.js");
+            const swVersion = encodeURIComponent(String(window.RENOVO_APP_VERSION || "dev"));
+            const registration = await navigator.serviceWorker.register(`./service-worker.js?v=${swVersion}`, {
+              updateViaCache: "none",
+            });
             registration.update().catch(() => {});
             navigator.serviceWorker.addEventListener("controllerchange", () => {
-              window.location.reload();
+              // Só recarrega se nenhum modal estiver aberto (usuário não está preenchendo formulário)
+              const hasOpenModal = document.querySelector(".modal-backdrop:not([hidden])");
+              if (hasOpenModal) {
+                // Aguarda fechar todos os modais para então recarregar
+                const observer = new MutationObserver(() => {
+                  if (!document.querySelector(".modal-backdrop:not([hidden])")) {
+                    observer.disconnect();
+                    window.location.reload();
+                  }
+                });
+                observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["hidden"] });
+              } else {
+                window.location.reload();
+              }
             });
             // Verifica atualização a cada 60 segundos enquanto a página está aberta
             setInterval(() => registration.update().catch(() => {}), 60000);
