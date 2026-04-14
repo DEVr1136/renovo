@@ -1,0 +1,25 @@
+{
+  "name": "Renovo+",
+  "short_name": "Renovo+",
+  "description": "Base da Renovo+ com autenticacao real, modulos separados e governanca por usuario.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5eadf",
+  "theme_color": "#7c1d18",
+  "icons": [
+    {
+      "src": "../pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

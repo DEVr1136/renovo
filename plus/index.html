@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renovo+ | Redirecionando</title>
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content="0; url=../renovo-plus/" />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5eadf;
+        --panel: #fffaf3;
+        --ink: #24140f;
+        --soft: #71594f;
+        --brand: #7c1d18;
+        --line: rgba(124, 29, 24, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background:
+          radial-gradient(circle at top left, rgba(214, 165, 76, 0.18), transparent 28%),
+          linear-gradient(180deg, #f7ecdf 0%, #f0e1d2 100%);
+        color: var(--ink);
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(32rem, 100%);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 60px rgba(49, 21, 18, 0.12);
+        padding: 2rem;
+      }
+
+      p {
+        color: var(--soft);
+        line-height: 1.7;
+        margin: 0.8rem 0 0;
+      }
+
+      a {
+        color: var(--brand);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Renovo+</h1>
+      <p>Estamos abrindo a nova URL do app em uma rota separada.</p>
+      <p>Se o redirecionamento nao acontecer automaticamente, use este link: <a href="../renovo-plus/">abrir Renovo+</a>.</p>
+    </main>
+    <script>
+      window.location.replace("../renovo-plus/");
+    </script>
+  </body>
+</html>

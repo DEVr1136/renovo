@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renovo+</title>
+    <meta name="theme-color" content="#7c1d18" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <script src="./app-version.js"></script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="plus-background" aria-hidden="true">
+      <div class="plus-orb plus-orb-a"></div>
+      <div class="plus-orb plus-orb-b"></div>
+      <div class="plus-grid"></div>
+    </div>
+
+    <div id="plus-loading-screen" class="plus-loading-screen">
+      <div class="plus-loading-card">
+        <p class="plus-eyebrow">Renovo+ V2</p>
+        <h1>Fundação do novo app</h1>
+        <p>Preparando autenticação, módulos e estrutura do sistema.</p>
+      </div>
+    </div>
+
+    <div id="plus-auth-screen" class="plus-auth-screen" hidden>
+      <section class="plus-auth-card">
+        <div class="plus-auth-copy">
+          <p class="plus-eyebrow">Igreja Renovo</p>
+          <h1>Renovo+</h1>
+          <p class="plus-auth-lead">
+            Nova base do sistema com autenticação real, permissões por papel e dados separados por módulo.
+          </p>
+          <div class="plus-auth-highlights">
+            <article>
+              <strong>Auth</strong>
+              <span>Firebase Auth com sessão persistente por usuário.</span>
+            </article>
+            <article>
+              <strong>Escopo</strong>
+              <span>Cada pessoa acessa só as células permitidas pelo próprio perfil.</span>
+            </article>
+            <article>
+              <strong>Estrutura</strong>
+              <span>Base preparada para relatórios, estudos, visitantes e auditoria.</span>
+            </article>
+          </div>
+        </div>
+
+        <form id="plus-auth-form" class="plus-auth-form">
+          <div class="plus-auth-head">
+            <span class="plus-chip">Fundação pronta para V2</span>
+            <p>Entrar com o acesso que será usado no novo app.</p>
+          </div>
+
+          <label>
+            E-mail
+            <input id="plus-email-input" name="email" type="email" autocomplete="email" placeholder="lider@igrejarenovo.com" required />
+          </label>
+
+          <label>
+            Senha
+            <input id="plus-password-input" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required />
+          </label>
+
+          <button id="plus-login-button" type="submit">Entrar na Renovo+</button>
+          <p id="plus-auth-feedback" class="plus-auth-feedback" aria-live="polite"></p>
+
+          <button id="plus-register-toggle" type="button" class="plus-secondary-button">Criar nova conta</button>
+        </form>
+
+        <form id="plus-register-form" class="plus-auth-form plus-auth-form-secondary" hidden>
+          <div class="plus-auth-head">
+            <span class="plus-chip">Onboarding</span>
+            <p>Criar uma conta nova para comecar na Renovo+.</p>
+          </div>
+
+          <label>
+            Nome
+            <input id="plus-register-name" name="name" type="text" autocomplete="name" placeholder="Nome completo" required />
+          </label>
+
+          <label>
+            E-mail
+            <input id="plus-register-email" name="email" type="email" autocomplete="email" placeholder="lider@igrejarenovo.com" required />
+          </label>
+
+          <label>
+            Senha
+            <input id="plus-register-password" name="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" required />
+          </label>
+
+          <label>
+            Confirmar senha
+            <input id="plus-register-confirm" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita a senha" required />
+          </label>
+
+          <button id="plus-register-button" type="submit">Criar conta na Renovo+</button>
+          <p id="plus-register-feedback" class="plus-auth-feedback" aria-live="polite"></p>
+          <button id="plus-register-cancel" type="button" class="plus-secondary-button">Voltar para o login</button>
+        </form>
+      </section>
+    </div>
+
+    <div id="plus-shell" class="plus-shell" hidden>
+      <aside class="plus-sidebar">
+        <div class="plus-brand-block">
+          <p class="plus-eyebrow">Igreja Renovo</p>
+          <h1>Renovo+</h1>
+          <p class="plus-version">Versão <span id="plus-version-label"></span></p>
+        </div>
+
+        <nav id="plus-nav" class="plus-nav" aria-label="Navegação principal">
+          <button type="button" class="plus-nav-item is-active" data-route="dashboard">Painel</button>
+          <button type="button" class="plus-nav-item" data-route="cells">Células</button>
+          <button type="button" class="plus-nav-item" data-route="members">Membros</button>
+          <button type="button" class="plus-nav-item" data-route="reports">Relatórios</button>
+          <button type="button" class="plus-nav-item" data-route="studies">Estudos</button>
+          <button type="button" class="plus-nav-item" data-route="visitors">Visitantes</button>
+          <button type="button" class="plus-nav-item" data-route="alerts">Acompanhamento</button>
+          <button type="button" class="plus-nav-item" data-route="access">Acessos</button>
+        </nav>
+
+        <div class="plus-sidebar-footer">
+          <p>Esta fundação está isolada da V1 para podermos evoluir com segurança.</p>
+        </div>
+      </aside>
+
+      <main class="plus-main">
+        <header class="plus-topbar">
+          <div>
+            <p id="plus-page-kicker" class="plus-page-kicker">Mapa da Renovo+</p>
+            <h2 id="plus-page-title">Painel</h2>
+            <p id="plus-page-description" class="plus-page-description"></p>
+          </div>
+
+          <div class="plus-topbar-side">
+            <div class="plus-user-summary">
+              <span id="plus-status-pill" class="plus-status-pill">Preparando</span>
+              <strong id="plus-user-name">-</strong>
+              <span id="plus-user-meta">-</span>
+            </div>
+            <button id="plus-signout-button" type="button" class="plus-ghost-button">Sair</button>
+          </div>
+        </header>
+
+        <section id="plus-profile-warning" class="plus-profile-warning" hidden></section>
+        <section id="plus-page-body" class="plus-page-body"></section>
+      </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    <script src="./firebase-plus.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
