@@ -323,13 +323,14 @@
   window.fsSaveReports = async function (reports) {
     const list = Array.isArray(reports) ? reports : [];
     if (!list.length) {
-      return;
+      return true;
     }
 
     const synced = await ensurePerDocReports(list);
     if (synced) {
       await markReportsStorageMode(list.length);
     }
+    return synced;
   };
 
   window.fsSaveReport = async function (report) {
@@ -337,25 +338,28 @@
     if (saved) {
       await markReportsStorageMode(null);
     }
+    return saved;
   };
 
   window.fsDeleteReport = async function (reportId) {
     const ref = getReportDocRef(reportId);
     if (!ref) {
-      return;
+      return false;
     }
 
     try {
       await ref.delete();
+      return true;
     } catch (error) {
       console.warn("[Firebase] deleteReport:", error?.message || error);
+      return false;
     }
   };
 
   window.fsDeleteReportsByCell = async function (cellId) {
     const normalizedCellId = String(cellId || "").trim();
     if (!normalizedCellId) {
-      return;
+      return false;
     }
 
     try {
@@ -364,7 +368,7 @@
         .get();
 
       if (snapshot.empty) {
-        return;
+        return true;
       }
 
       let batch = db.batch();
@@ -391,8 +395,10 @@
       }
 
       await Promise.all(commits);
+      return true;
     } catch (error) {
       console.warn("[Firebase] deleteReportsByCell:", error?.message || error);
+      return false;
     }
   };
 

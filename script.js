@@ -1180,7 +1180,7 @@ function bindAppEvents() {
     if (thumb) openLightbox(thumb.src);
   });
 
-  reportForm?.addEventListener("submit", (event) => {
+  reportForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     if (generateReportButton && generateReportButton.textContent === "Gerar novo relatorio") {
@@ -1260,7 +1260,6 @@ function bindAppEvents() {
     state.lastReportId = savedReport.id;
     try { processAbsenceAlerts(savedReport, cell); } catch (_) {}
     persistAndRender();
-    syncReportToRemote(savedReport);
 
     const presentIds = new Set(savedReport.presentMemberIds);
     const presentCount = cell.members.filter((m) => presentIds.has(m.id)).length;
@@ -1273,11 +1272,22 @@ function bindAppEvents() {
     renderReportImages(savedReport.images);
 
     if (generateReportButton) {
-      generateReportButton.textContent = "Gerar novo relatorio";
+      generateReportButton.disabled = true;
+      generateReportButton.textContent = "Salvando...";
+    }
+
+    const savedRemotely = await syncReportToRemote(savedReport);
+    if (generateReportButton) {
+      generateReportButton.disabled = false;
+      generateReportButton.textContent = savedRemotely ? "Gerar novo relatorio" : "Tentar salvar novamente";
+    }
+
+    if (!savedRemotely && typeof window !== "undefined" && typeof window.alert === "function") {
+      window.alert("O relatório foi salvo neste aparelho, mas não foi confirmado online. Tente novamente antes de atualizar a página.");
     }
   });
 
-  reportHistoryList?.addEventListener("click", (event) => {
+  reportHistoryList?.addEventListener("click", async (event) => {
     const clickTarget = event.target;
     if (!(clickTarget instanceof Element)) {
       return;
@@ -1291,10 +1301,20 @@ function bindAppEvents() {
       if (!target) return;
       const label = formatDateForReport(target.date);
       if (!confirm(`Apagar o relatório de ${label}? Esta ação não pode ser desfeita.`)) return;
+
+      deleteBtn.disabled = true;
+      const deletedRemotely = await deleteReportFromRemote(reportId);
+      if (!deletedRemotely) {
+        deleteBtn.disabled = false;
+        if (typeof window !== "undefined" && typeof window.alert === "function") {
+          window.alert("Não foi possível confirmar a exclusão online. Tente novamente e aguarde antes de atualizar a página.");
+        }
+        return;
+      }
+
       state.reports = state.reports.filter((r) => r.id !== reportId);
       if (state.lastReportId === reportId) state.lastReportId = "";
       saveState(state);
-      deleteReportFromRemote(reportId);
       render();
       return;
     }
@@ -2469,36 +2489,34 @@ function persistAndRender() {
   render();
 }
 
-function runRemoteTask(label, action) {
+async function runRemoteTask(label, action) {
   try {
-    const pending = action();
-    if (pending && typeof pending.catch === "function") {
-      pending.catch((error) => console.warn(`[Firebase] ${label}:`, error?.message || error));
-    }
+    return await action();
   } catch (error) {
     console.warn(`[Firebase] ${label}:`, error?.message || error);
+    return false;
   }
 }
 
-function syncReportToRemote(report) {
+async function syncReportToRemote(report) {
   if (!report || typeof window.fsSaveReport !== "function") {
-    return;
+    return false;
   }
-  runRemoteTask("saveReport", () => window.fsSaveReport(report));
+  return runRemoteTask("saveReport", () => window.fsSaveReport(report));
 }
 
-function deleteReportFromRemote(reportId) {
+async function deleteReportFromRemote(reportId) {
   if (!reportId || typeof window.fsDeleteReport !== "function") {
-    return;
+    return false;
   }
-  runRemoteTask("deleteReport", () => window.fsDeleteReport(reportId));
+  return runRemoteTask("deleteReport", () => window.fsDeleteReport(reportId));
 }
 
-function deleteCellReportsFromRemote(cellId) {
+async function deleteCellReportsFromRemote(cellId) {
   if (!cellId || typeof window.fsDeleteReportsByCell !== "function") {
-    return;
+    return false;
   }
-  runRemoteTask("deleteReportsByCell", () => window.fsDeleteReportsByCell(cellId));
+  return runRemoteTask("deleteReportsByCell", () => window.fsDeleteReportsByCell(cellId));
 }
 
 function render() {
