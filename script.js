@@ -226,12 +226,7 @@ function bindAuthEvents() {
       return;
     }
 
-    session = buildSessionFromUser(user);
-    saveSession(session);
-    hasAppliedInitialReportContext = false;
-    ensureLeaderCellForSession();
-    showHomeScreen();
-    render();
+    await activateSessionForUser(user, { refreshRemote: true });
     loginForm.reset();
     if (registerForm) {
       registerForm.hidden = true;
@@ -284,12 +279,7 @@ function bindAuthEvents() {
     users.push(newUser);
     saveUsers(users);
 
-    session = buildSessionFromUser(newUser);
-    saveSession(session);
-    hasAppliedInitialReportContext = false;
-    ensureLeaderCellForSession();
-    showHomeScreen();
-    render();
+    await activateSessionForUser(newUser, { refreshRemote: false });
     registerForm.reset();
     registerForm.hidden = true;
     setAuthFeedback("");
@@ -1513,106 +1503,7 @@ async function bootstrapApp() {
 
   const cached = loadState();
 
-  try {
-    const loadRemoteData =
-      typeof window.fsLoadAll === "function"
-        ? window.fsLoadAll()
-        : Promise.resolve({ state: null, users: null, visitantes: null });
-
-    const fsData = await Promise.race([
-      loadRemoteData,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
-    ]);
-
-    const hasRemoteSnapshot =
-      Boolean(fsData.state) ||
-      Array.isArray(fsData.cells) ||
-      Array.isArray(fsData.reports) ||
-      Array.isArray(fsData.users) ||
-      Array.isArray(fsData.visitantes);
-
-    // Estado (células, relatórios, estudos)
-    if (hasRemoteSnapshot) {
-      const remoteState = fsData.state
-        ? hydrateStateSnapshot(fsData.state)
-        : { cells: [], reports: [], studies: [], lastReportId: null, updatedAt: null };
-
-      // Células: doc dedicado renovo/cells — nunca sobrescrito por saves de relatório
-      if (Array.isArray(fsData.cells)) {
-        state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
-      } else {
-        // Legacy: células ainda no doc state — migra imediatamente para renovo/cells
-        state.cells = remoteState.cells;
-        if (state.cells.length > 0 && window.fsSaveCells) {
-          window.fsSaveCells(state.cells);
-        }
-      }
-
-      state.studies = remoteState.studies;
-      state.lastReportId = remoteState.lastReportId;
-      state.updatedAt = remoteState.updatedAt;
-
-      // Relatorios: carrega do Firestore e preserva qualquer copia local mais nova
-      let remoteReports = [];
-      if (Array.isArray(fsData.reports)) {
-        try {
-          const imgStore = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
-          remoteReports = fsData.reports
-            .map(normalizeReport).filter(Boolean)
-            .map((r) => Object.assign({}, r, { images: imgStore[r.id] || [] }));
-        } catch (_) {
-          remoteReports = fsData.reports.map(normalizeReport).filter(Boolean);
-        }
-      } else {
-        remoteReports = remoteState.reports;
-      }
-
-      state.reports = mergeReportSnapshots(remoteReports, cached.reports);
-      if (hasNewerReports(state.reports, remoteReports) && window.fsSaveReports) {
-        window.fsSaveReports(state.reports);
-      }
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripStateForStorage(state)));
-    } else {
-      // Firebase vazio — carrega localStorage e faz upload imediato para o Firestore
-      state.cells = cached.cells;
-      state.reports = cached.reports;
-      state.studies = cached.studies;
-      state.lastReportId = cached.lastReportId;
-      state.updatedAt = cached.updatedAt;
-      // Migração: sobe dados locais para o Firestore
-      if (window.fsSaveState) window.fsSaveState(state, { syncReports: true });
-    }
-
-    // Usuários
-    if (fsData.users && fsData.users.length > 0) {
-      users = fsData.users.map(normalizeUser).filter(Boolean);
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    } else {
-      users = loadUsers();
-      // Migração: sobe usuários para o Firestore
-      if (window.fsSaveUsers) window.fsSaveUsers(users);
-    }
-
-    // Visitantes da igreja
-    if (Array.isArray(fsData.visitantes)) {
-      localStorage.setItem(VISITANTES_PUB_KEY, JSON.stringify(fsData.visitantes));
-    } else {
-      // Migração: sobe visitantes para o Firestore
-      const localVisitantes = loadVisitantesPub();
-      if (localVisitantes.length > 0 && window.fsSaveVisitantes) {
-        window.fsSaveVisitantes(localVisitantes);
-      }
-    }
-  } catch (_) {
-    // Fallback total para localStorage (offline)
-    state.cells = cached.cells;
-    state.reports = cached.reports;
-    state.studies = cached.studies;
-    state.lastReportId = cached.lastReportId;
-    state.updatedAt = cached.updatedAt;
-    users = loadUsers();
-  }
+  await refreshAppDataFromRemote({ cachedState: cached, uploadLocalFallback: true });
 
   ensureDefaultUsers();
   try { runInitialSeedOnce(); } catch (e) { console.warn("[seed] erro:", e); }
@@ -2486,6 +2377,158 @@ function ensureCellForLeaderUser(user) {
 
 function persistAndRender() {
   saveState(state);
+  render();
+}
+
+function createEmptyFsSnapshot() {
+  return { state: null, cells: null, reports: null, users: null, visitantes: null };
+}
+
+function hasRemoteSnapshotData(fsData) {
+  return (
+    Boolean(fsData?.state) ||
+    Array.isArray(fsData?.cells) ||
+    Array.isArray(fsData?.reports) ||
+    Array.isArray(fsData?.users) ||
+    Array.isArray(fsData?.visitantes)
+  );
+}
+
+function applyCachedAppData(cachedState, cachedUsers) {
+  const fallbackState = cachedState || loadState();
+  state.cells = fallbackState.cells;
+  state.reports = fallbackState.reports;
+  state.studies = fallbackState.studies;
+  state.lastReportId = fallbackState.lastReportId;
+  state.updatedAt = fallbackState.updatedAt;
+  users = Array.isArray(cachedUsers) ? cachedUsers : loadUsers();
+}
+
+function applyRemoteAppData(fsData, cachedState) {
+  const remoteState = fsData.state
+    ? hydrateStateSnapshot(fsData.state)
+    : { cells: [], reports: [], studies: [], lastReportId: null, updatedAt: null };
+
+  if (Array.isArray(fsData.cells)) {
+    state.cells = fsData.cells.map(normalizeCell).filter(Boolean);
+  } else {
+    state.cells = remoteState.cells;
+    if (state.cells.length > 0 && window.fsSaveCells) {
+      window.fsSaveCells(state.cells);
+    }
+  }
+
+  state.studies = remoteState.studies;
+  state.lastReportId = remoteState.lastReportId;
+  state.updatedAt = remoteState.updatedAt;
+
+  let remoteReports = [];
+  if (Array.isArray(fsData.reports)) {
+    try {
+      const imgStore = JSON.parse(localStorage.getItem(LOCAL_IMAGES_KEY) || "{}");
+      remoteReports = fsData.reports
+        .map(normalizeReport).filter(Boolean)
+        .map((report) => Object.assign({}, report, { images: imgStore[report.id] || [] }));
+    } catch (_) {
+      remoteReports = fsData.reports.map(normalizeReport).filter(Boolean);
+    }
+  } else {
+    remoteReports = remoteState.reports;
+  }
+
+  state.reports = mergeReportSnapshots(remoteReports, cachedState?.reports);
+  if (hasNewerReports(state.reports, remoteReports) && window.fsSaveReports) {
+    window.fsSaveReports(state.reports);
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stripStateForStorage(state)));
+}
+
+async function refreshAppDataFromRemote(options = {}) {
+  const cachedState = options.cachedState || loadState();
+  const cachedUsers = Array.isArray(options.cachedUsers) ? options.cachedUsers : loadUsers();
+  const uploadLocalFallback = options.uploadLocalFallback === true;
+
+  try {
+    const loadRemoteData =
+      typeof window.fsLoadAll === "function"
+        ? window.fsLoadAll()
+        : Promise.resolve(createEmptyFsSnapshot());
+
+    const fsData = await Promise.race([
+      loadRemoteData,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+    ]);
+
+    if (hasRemoteSnapshotData(fsData)) {
+      applyRemoteAppData(fsData, cachedState);
+
+      if (Array.isArray(fsData.users) && fsData.users.length > 0) {
+        users = fsData.users.map(normalizeUser).filter(Boolean);
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      } else {
+        users = cachedUsers;
+        if (uploadLocalFallback && window.fsSaveUsers) {
+          window.fsSaveUsers(users);
+        }
+      }
+
+      if (Array.isArray(fsData.visitantes)) {
+        localStorage.setItem(VISITANTES_PUB_KEY, JSON.stringify(fsData.visitantes));
+      } else if (uploadLocalFallback) {
+        const localVisitantes = loadVisitantesPub();
+        if (localVisitantes.length > 0 && window.fsSaveVisitantes) {
+          window.fsSaveVisitantes(localVisitantes);
+        }
+      }
+    } else {
+      applyCachedAppData(cachedState, cachedUsers);
+      if (uploadLocalFallback && window.fsSaveState) {
+        window.fsSaveState(state, { syncReports: true });
+      }
+      if (uploadLocalFallback && window.fsSaveUsers) {
+        window.fsSaveUsers(users);
+      }
+      if (uploadLocalFallback) {
+        const localVisitantes = loadVisitantesPub();
+        if (localVisitantes.length > 0 && window.fsSaveVisitantes) {
+          window.fsSaveVisitantes(localVisitantes);
+        }
+      }
+    }
+  } catch (_) {
+    applyCachedAppData(cachedState, cachedUsers);
+  }
+}
+
+async function activateSessionForUser(user, options = {}) {
+  const refreshRemote = options.refreshRemote !== false;
+  const fallbackUser = user;
+
+  try {
+    if (refreshRemote) {
+      showLoadingScreen();
+      await refreshAppDataFromRemote({
+        cachedState: loadState(),
+        cachedUsers: Array.isArray(users) ? users.slice() : [],
+        uploadLocalFallback: false,
+      });
+    }
+  } finally {
+    if (refreshRemote) {
+      hideLoadingScreen();
+    }
+  }
+
+  const refreshedUser = users.find(
+    (entry) => normalizeUsername(entry.username) === normalizeUsername(fallbackUser?.username)
+  ) || fallbackUser;
+
+  session = buildSessionFromUser(refreshedUser);
+  saveSession(session);
+  hasAppliedInitialReportContext = false;
+  ensureLeaderCellForSession();
+  showHomeScreen();
   render();
 }
 
