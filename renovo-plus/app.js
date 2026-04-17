@@ -1105,8 +1105,16 @@
   }
 
   async function openAccessModal() {
-    if (!canManageAccess()) return;
-    await loadAllData();
+    if (!canManageAccess()) {
+      alert("Sem permissão para gerenciar acessos. Cargo atual: " + (session?.role || "indefinido"));
+      return;
+    }
+    try {
+      await loadAllData();
+    } catch (err) {
+      alert("Erro ao carregar dados: " + (err.message || err));
+      return;
+    }
     renderAccessUsers();
     populateAccessCellSelects();
     resetAccessForm();
