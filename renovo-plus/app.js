@@ -1077,8 +1077,23 @@
   function setupAccessModal() {
     $("close-access-modal")?.addEventListener("click", () => { closeModal("access-modal"); resetAccessForm(); });
     $("cancel-access-edit")?.addEventListener("click", resetAccessForm);
-    $("access-form")?.elements?.role?.addEventListener("change", updateAccessFormVisibility);
-    $("access-form")?.addEventListener("submit", async (e) => { e.preventDefault(); await handleAccessSubmit(e.target); });
+
+    const accessForm = $("access-form");
+    if (accessForm) {
+      accessForm.querySelector('select[name="role"]')?.addEventListener("change", updateAccessFormVisibility);
+      accessForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await handleAccessSubmit(accessForm);
+      });
+    }
+
+    // Fallback: direct click on save button
+    $("save-access-button")?.addEventListener("click", async () => {
+      const form = $("access-form");
+      if (!form) return;
+      if (!form.reportValidity()) return;
+      await handleAccessSubmit(form);
+    });
   }
 
   function resetAccessForm() {
