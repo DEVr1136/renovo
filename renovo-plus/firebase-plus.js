@@ -12,7 +12,7 @@
   };
 
   const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyAkVidPhtpX-o2gGlvTkdbYLQ7CJmMl3fs",
+    apiKey: "AIzaSyAkVidPhtpX-o2gGlvTkdbYlQ7CJmMl3fs",
     authDomain: "ambiente-renovo.firebaseapp.com",
     projectId: "ambiente-renovo",
     storageBucket: "ambiente-renovo.firebasestorage.app",
