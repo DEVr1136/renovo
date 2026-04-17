@@ -43,6 +43,19 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
+  const requestUrl = new URL(request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const isIsolatedV2Route = isSameOrigin && (
+    requestUrl.pathname.includes("/renovo-plus/")
+    || /\/plus(\/|$)/.test(requestUrl.pathname)
+  );
+
+  // The Renovo+ route is evolving separately from the V1 PWA.
+  // Let the browser fetch it directly so the root SW does not pin old JS/CSS.
+  if (isIsolatedV2Route) {
+    return;
+  }
+
   const isNavigation = request.mode === "navigate";
   if (isNavigation) {
     event.respondWith(
@@ -56,8 +69,6 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-
-  const isSameOrigin = request.url.startsWith(self.location.origin);
 
   const isHtml = request.url.endsWith(".html") || request.url.endsWith("/");
   if (isHtml && isSameOrigin) {
