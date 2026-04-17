@@ -1105,31 +1105,34 @@
   }
 
   async function openAccessModal() {
-    if (!canManageAccess()) {
-      alert("Sem permissão para gerenciar acessos. Cargo atual: " + (session?.role || "indefinido"));
-      return;
-    }
     try {
+      if (!canManageAccess()) {
+        alert("Sem permissão. Cargo: " + (session?.role || "indefinido"));
+        return;
+      }
       await loadAllData();
+      renderAccessUsers();
+      populateAccessCellSelects();
+      resetAccessForm();
+      const form = $("access-form");
+      if (form) {
+        const roleSelect = form.querySelector('select[name="role"]');
+        if (roleSelect) {
+          if (isCoordinator()) {
+            roleSelect.innerHTML = `<option value="leader">Líder de Célula</option>`;
+          } else {
+            roleSelect.innerHTML = `
+              <option value="leader">Líder de Célula</option>
+              <option value="coordinator">Coordenador</option>
+              <option value="pastor">Pastor</option>
+              <option value="admin">Admin</option>`;
+          }
+        }
+      }
+      openModal("access-modal");
     } catch (err) {
-      alert("Erro ao carregar dados: " + (err.message || err));
-      return;
+      alert("Erro ao abrir acessos: " + (err?.message || String(err)));
     }
-    renderAccessUsers();
-    populateAccessCellSelects();
-    resetAccessForm();
-    // Restrict role options for coordinators
-    const roleSelect = $("access-form")?.elements?.role;
-    if (roleSelect && isCoordinator()) {
-      roleSelect.innerHTML = `<option value="leader">Líder de Célula</option>`;
-    } else if (roleSelect) {
-      roleSelect.innerHTML = `
-        <option value="leader">Líder de Célula</option>
-        <option value="coordinator">Coordenador</option>
-        <option value="pastor">Pastor</option>
-        <option value="admin">Admin</option>`;
-    }
-    openModal("access-modal");
   }
 
   function populateAccessCellSelects() {
