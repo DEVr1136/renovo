@@ -518,7 +518,8 @@
 
   // ─── MODAL: RELATÓRIO SEMANAL ──────────────────────────────────────────────
   let foodItems = [];
-  let reportImages = [];
+  let reportImages = []; // { url: objectURL, name, file, uploadedUrl }
+  let existingImageUrls = []; // URLs already saved in Firestore for the report being edited
 
   function setupReportModal() {
     $("close-report-modal")?.addEventListener("click", () => {
@@ -552,7 +553,7 @@
     $("add-image-btn")?.addEventListener("click", () => $("image-file-input")?.click());
     $("image-file-input")?.addEventListener("change", (e) => {
       Array.from(e.target.files || []).forEach((file) => {
-        reportImages.push({ url: URL.createObjectURL(file), name: file.name });
+        reportImages.push({ url: URL.createObjectURL(file), name: file.name, file });
       });
       renderReportImages();
       e.target.value = "";
@@ -578,6 +579,7 @@
     editingReportId = null;
     foodItems = [];
     reportImages = [];
+    existingImageUrls = [];
     $("report-form")?.reset();
     if ($("report-mode-note")) $("report-mode-note").hidden = true;
     if ($("report-output")) $("report-output").value = "";
@@ -675,23 +677,57 @@
     const container = $("images-list");
     const countLabel = $("images-count-label");
     if (container) {
-      container.innerHTML = reportImages
-        .map((img, i) =>
-          `<div class="image-thumb-wrap" style="position:relative;display:inline-block;margin:0.2rem">
-            <img src="${img.url}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:0.4rem;display:block" />
-            <button type="button" class="ghost-btn" onclick="window._removeReportImage(${i})"
-              style="position:absolute;top:2px;right:2px;padding:0 4px;font-size:0.75rem;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:0.3rem;cursor:pointer">×</button>
-          </div>`
-        ).join("");
+      const existingHtml = existingImageUrls.map((url, i) =>
+        `<div class="image-thumb-wrap" style="position:relative;display:inline-block;margin:0.2rem">
+          <img src="${escHtml(url)}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:0.4rem;display:block;cursor:pointer"
+            onclick="window._openImageFull('${escHtml(url)}')" />
+          <button type="button" class="ghost-btn" onclick="window._removeExistingImage(${i})"
+            style="position:absolute;top:2px;right:2px;padding:0 4px;font-size:0.75rem;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:0.3rem;cursor:pointer">×</button>
+          <span style="position:absolute;bottom:2px;left:2px;font-size:0.6rem;background:rgba(0,0,0,0.5);color:#fff;padding:1px 3px;border-radius:2px">salva</span>
+        </div>`
+      ).join("");
+
+      const newHtml = reportImages.map((img, i) =>
+        `<div class="image-thumb-wrap" style="position:relative;display:inline-block;margin:0.2rem">
+          <img src="${img.url}" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:0.4rem;display:block" />
+          <button type="button" class="ghost-btn" onclick="window._removeReportImage(${i})"
+            style="position:absolute;top:2px;right:2px;padding:0 4px;font-size:0.75rem;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:0.3rem;cursor:pointer">×</button>
+        </div>`
+      ).join("");
+
+      container.innerHTML = existingHtml + newHtml;
     }
-    if (countLabel) countLabel.textContent = reportImages.length ? `(${reportImages.length})` : "";
+    const total = existingImageUrls.length + reportImages.length;
+    if (countLabel) countLabel.textContent = total ? `(${total})` : "";
   }
 
   window._removeReportImage = (i) => { reportImages.splice(i, 1); renderReportImages(); };
+  window._removeExistingImage = (i) => { existingImageUrls.splice(i, 1); renderReportImages(); };
+  window._openImageFull = (url) => { window.open(url, "_blank", "noopener"); };
+
+  async function uploadReportImages(reportId) {
+    const storage = fb().storage;
+    if (!storage || !reportImages.length) return [];
+    const urls = [];
+    for (const img of reportImages) {
+      if (!img.file) continue;
+      try {
+        const ext = img.name.split(".").pop() || "jpg";
+        const path = `renovo-plus/reports/${reportId}/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
+        const snap = await storage.ref(path).put(img.file);
+        const url = await snap.ref.getDownloadURL();
+        urls.push(url);
+      } catch (err) {
+        console.warn("[Renovo+] upload image:", err?.message || err);
+      }
+    }
+    return urls;
+  }
 
   async function handleReportSubmit(form) {
     const btn = $("generate-report-btn");
-    setButtonLoading(btn, true, "Gerando...");
+    const hasNewImages = reportImages.some((img) => img.file);
+    setButtonLoading(btn, true, hasNewImages ? "Enviando fotos..." : "Gerando...");
 
     const cellId = form.elements.cellId.value;
     const date = form.elements.date.value;
@@ -720,18 +756,31 @@
     const foodsStr = foodsToggle === "sim" ? foodItems.filter(Boolean).join(", ") : "";
 
     try {
+      // Determine the report ID upfront so we can use it as Storage path
+      const targetId = editingReportId || fb().db.collection("renovo_plus_reports").doc().id;
+
+      // Upload new images first
+      const newImageUrls = await uploadReportImages(targetId);
+      const allImageUrls = [...existingImageUrls, ...newImageUrls];
+
       const saved = await fb().saveReport(
         {
-          id: editingReportId || undefined,
+          id: targetId,
           cellId, date, leaders, coLeaders, host, address,
           presentMemberIds, presentCount,
           visitorsCount, visitorNames,
           offering, snack, discipleship, communionMinutes,
           foods: foodsStr, notes: "",
+          imageUrls: allImageUrls,
         },
         session.uid
       );
       editingReportId = saved.id;
+      // Update local image state after save
+      reportImages = [];
+      existingImageUrls = saved.imageUrls || [];
+      renderReportImages();
+
       await loadAllData();
       renderAppShell();
 
@@ -743,6 +792,24 @@
         offering, snack, discipleship, communionMinutes, foods: foodsStr,
       });
       $("report-output").value = text;
+
+      // Show photo gallery in output panel
+      const gallery = $("report-images-gallery");
+      if (gallery) {
+        if (allImageUrls.length) {
+          gallery.hidden = false;
+          gallery.innerHTML = `<p style="font-size:0.85rem;font-weight:600;margin:0 0 0.5rem">📸 Fotos (${allImageUrls.length})</p>` +
+            `<div style="display:flex;flex-wrap:wrap;gap:0.4rem">` +
+            allImageUrls.map((url) =>
+              `<a href="${escHtml(url)}" target="_blank" rel="noopener">
+                <img src="${escHtml(url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:0.4rem;display:block" />
+              </a>`
+            ).join("") + `</div>`;
+        } else {
+          gallery.hidden = true;
+          gallery.innerHTML = "";
+        }
+      }
 
       updateReportHistory();
       drawReportCharts(cellId, presentCount, allMembers.length, visitorsCount);
@@ -870,6 +937,11 @@
       const countInp = $("visitors-count-input");
       if (countInp) countInp.value = report.visitorsCount || 0;
     }, 50);
+
+    // Load existing images
+    reportImages = [];
+    existingImageUrls = Array.isArray(report.imageUrls) ? [...report.imageUrls] : [];
+    renderReportImages();
 
     updateReportHistory();
     const modeNote = $("report-mode-note");

@@ -216,6 +216,10 @@
       ? data.presentMemberIds.map((id) => String(id || "").trim()).filter(Boolean)
       : [];
 
+    const imageUrls = Array.isArray(data.imageUrls)
+      ? data.imageUrls.map((u) => String(u || "").trim()).filter(Boolean)
+      : [];
+
     return {
       id: String(data.id || docId).trim(),
       cellId: String(data.cellId || "").trim(),
@@ -234,6 +238,7 @@
       communionMinutes: String(data.communionMinutes || "").trim(),
       foods: String(data.foods || "").trim(),
       notes: String(data.notes || "").trim(),
+      imageUrls,
       createdAt: String(data.createdAt || "").trim(),
       updatedAt: String(data.updatedAt || "").trim(),
       createdByUid: String(data.createdByUid || "").trim(),
@@ -1282,6 +1287,9 @@
       communionMinutes: String(patch?.communionMinutes !== undefined ? patch.communionMinutes : (current?.communionMinutes || "")).trim(),
       foods: String(patch?.foods !== undefined ? patch.foods : (current?.foods || "")).trim(),
       notes: String(patch?.notes || current?.notes || "").trim(),
+      imageUrls: Array.isArray(patch?.imageUrls)
+        ? patch.imageUrls.map((u) => String(u || "").trim()).filter(Boolean)
+        : Array.isArray(current?.imageUrls) ? current.imageUrls : [],
       createdAt,
       updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
