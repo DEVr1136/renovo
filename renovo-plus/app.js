@@ -4,11 +4,6 @@
   const authForm = document.getElementById("plus-auth-form");
   const authFeedback = document.getElementById("plus-auth-feedback");
   const loginButton = document.getElementById("plus-login-button");
-  const registerToggleButton = document.getElementById("plus-register-toggle");
-  const registerForm = document.getElementById("plus-register-form");
-  const registerFeedback = document.getElementById("plus-register-feedback");
-  const registerButton = document.getElementById("plus-register-button");
-  const registerCancelButton = document.getElementById("plus-register-cancel");
   const loadingScreen = document.getElementById("plus-loading-screen");
   const shell = document.getElementById("plus-shell");
   const nav = document.getElementById("plus-nav");
@@ -176,11 +171,6 @@
     authFeedback.style.color = tone === "soft" ? "var(--plus-ink-soft)" : "var(--plus-danger)";
   }
 
-  function setRegisterFeedback(message, tone) {
-    registerFeedback.textContent = message || "";
-    registerFeedback.style.color = tone === "soft" ? "var(--plus-ink-soft)" : "var(--plus-danger)";
-  }
-
   function setStatus(text, tone) {
     statusPill.textContent = text;
     const tones = {
@@ -200,20 +190,6 @@
 
   function normalizeStatus(status) {
     return STATUS_LABELS[String(status || "").trim()] ? String(status).trim() : "pending";
-  }
-
-  function toggleRegisterMode(showRegister) {
-    if (authForm) {
-      authForm.hidden = Boolean(showRegister);
-    }
-    if (registerForm) {
-      registerForm.hidden = !showRegister;
-    }
-    if (showRegister) {
-      setFeedback("", "soft");
-    } else {
-      setRegisterFeedback("", "soft");
-    }
   }
 
   function canAccessRoute(route) {
@@ -2038,9 +2014,7 @@
     state.selectedAlertId = "";
 
     if (!user) {
-      toggleRegisterMode(false);
       setFeedback("", "soft");
-      setRegisterFeedback("", "soft");
       updateUserSummary();
       showAuthScreen();
       return;
@@ -2068,62 +2042,6 @@
     updateUserSummary();
     renderPage();
     showShell();
-  }
-
-  async function handleRegister(event) {
-    event.preventDefault();
-    const formData = new FormData(registerForm);
-    const name = String(formData.get("name") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "");
-    const confirmPassword = String(formData.get("confirmPassword") || "");
-
-    if (!name || !email || !password || !confirmPassword) {
-      setRegisterFeedback("Preencha nome, e-mail e senha.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setRegisterFeedback("Use pelo menos 6 caracteres na senha.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setRegisterFeedback("As senhas nao conferem.");
-      return;
-    }
-
-    try {
-      registerButton.disabled = true;
-      registerButton.textContent = "Criando conta...";
-      setRegisterFeedback("Criando conta na Renovo+...", "soft");
-
-      const result = await window.renovoPlusFirebase.signUpWithEmail(name, email, password);
-      registerForm.reset();
-
-      setRegisterFeedback(
-        result?.isFirstProfile
-          ? "Conta criada e promovida como primeiro admin da Renovo+."
-          : "Conta criada. Agora um admin ou pastor precisa liberar seu perfil.",
-        "soft"
-      );
-    } catch (error) {
-      const code = String(error?.code || "");
-      if (code.includes("email-already-in-use")) {
-        setRegisterFeedback("Este e-mail ja esta em uso.");
-      } else if (code.includes("invalid-email")) {
-        setRegisterFeedback("Informe um e-mail valido.");
-      } else if (code.includes("weak-password")) {
-        setRegisterFeedback("A senha precisa ser mais forte.");
-      } else if (code.includes("operation-not-allowed")) {
-        setRegisterFeedback("O cadastro por e-mail/senha ainda nao esta habilitado neste projeto Firebase.");
-      } else {
-        setRegisterFeedback(error?.message || "Nao foi possivel criar a conta agora.");
-      }
-    } finally {
-      registerButton.disabled = false;
-      registerButton.textContent = "Criar conta na Renovo+";
-    }
   }
 
   async function handleBootstrapSubmit(event) {
@@ -3486,14 +3404,10 @@
 
   async function bootstrap() {
     versionLabel.textContent = String(window.RENOVO_PLUS_VERSION || "dev");
-    toggleRegisterMode(false);
     setStatus("Carregando", "neutral");
     updateUserSummary();
 
     authForm?.addEventListener("submit", handleLogin);
-    registerForm?.addEventListener("submit", handleRegister);
-    registerToggleButton?.addEventListener("click", () => toggleRegisterMode(true));
-    registerCancelButton?.addEventListener("click", () => toggleRegisterMode(false));
     signOutButton?.addEventListener("click", handleSignOut);
     nav?.addEventListener("click", handleNavClick);
     pageBody?.addEventListener("click", handlePageClick);
