@@ -258,6 +258,18 @@ input {
   margin: 0;
 }
 
+.plus-auth-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.plus-auth-help {
+  color: var(--plus-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
 .plus-auth-form-secondary {
   border-top: 1px solid var(--plus-line);
 }
@@ -273,6 +285,11 @@ input {
 
 .plus-inline-button {
   width: fit-content;
+}
+
+.plus-danger-button {
+  background: rgba(162, 54, 43, 0.1);
+  color: var(--plus-danger);
 }
 
 .plus-shell {
@@ -497,6 +514,24 @@ input {
 
 .plus-card textarea {
   min-height: 6.5rem;
+}
+
+.plus-inline-checkbox {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.plus-inline-checkbox input {
+  min-height: auto;
+  width: auto;
+}
+
+.plus-muted-note {
+  color: var(--plus-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .plus-card-actions {

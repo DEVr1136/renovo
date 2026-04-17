@@ -3,7 +3,9 @@
   const authScreen = document.getElementById("plus-auth-screen");
   const authForm = document.getElementById("plus-auth-form");
   const authFeedback = document.getElementById("plus-auth-feedback");
+  const emailInput = document.getElementById("plus-email-input");
   const loginButton = document.getElementById("plus-login-button");
+  const resetPasswordButton = document.getElementById("plus-reset-password-button");
   const loadingScreen = document.getElementById("plus-loading-screen");
   const shell = document.getElementById("plus-shell");
   const nav = document.getElementById("plus-nav");
@@ -148,6 +150,7 @@
     alerts: [],
     profiles: [],
     hasAnyProfiles: false,
+    legacySummary: null,
     selectedProfileUid: "",
     selectedCellId: "",
     selectedMemberId: "",
@@ -413,6 +416,111 @@
 
     state.selectedProfileUid = state.profiles[0].uid;
     return state.profiles[0];
+  }
+
+  function canDeleteCell() {
+    return state.profile?.role === "admin";
+  }
+
+  function canDeleteManagedRecord() {
+    return state.profile?.role === "admin" || state.profile?.role === "pastor";
+  }
+
+  function canDeleteReport(report) {
+    if (canDeleteManagedRecord()) {
+      return true;
+    }
+
+    return Boolean(report?.id) && String(report?.createdByUid || "").trim() === String(state.authUser?.uid || "").trim();
+  }
+
+  function renderDeleteButton(label, datasetName, datasetValue) {
+    if (!datasetName || !datasetValue) {
+      return "";
+    }
+
+    return `<button type="button" class="plus-secondary-button plus-danger-button" data-${escapeHtml(datasetName)}="${escapeHtml(datasetValue)}">${escapeHtml(label)}</button>`;
+  }
+
+  function renderProvisionRoleOptions(selectedValue) {
+    const current = String(selectedValue || "pending");
+    const canAssignAdmin = state.profile?.role === "admin";
+    return [
+      { value: "pending", label: "Sem perfil" },
+      { value: "leader", label: "Lider" },
+      { value: "coordinator", label: "Coordenadora" },
+      { value: "pastor", label: "Pastor" },
+      ...(canAssignAdmin ? [{ value: "admin", label: "Admin" }] : []),
+    ]
+      .map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+      .join("");
+  }
+
+  function renderProvisionStatusOptions(selectedValue) {
+    const current = String(selectedValue || "pending");
+    return [
+      { value: "pending", label: "Pendente" },
+      { value: "active", label: "Ativo" },
+      { value: "inactive", label: "Inativo" },
+    ]
+      .map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+      .join("");
+  }
+
+  function buildProvisionFormHtml() {
+    return `
+      <form id="plus-provision-form">
+        <label>
+          Nome
+          <input name="name" type="text" placeholder="Nome completo do acesso" required />
+        </label>
+        <label>
+          E-mail
+          <input name="email" type="email" placeholder="lider@igrejarenovo.com" required />
+        </label>
+        <label>
+          Senha temporaria
+          <input name="temporaryPassword" type="text" minlength="6" placeholder="Minimo de 6 caracteres" required />
+        </label>
+        <label>
+          Role inicial
+          <select name="role">
+            ${renderProvisionRoleOptions("pending")}
+          </select>
+        </label>
+        <label>
+          Status inicial
+          <select name="status">
+            ${renderProvisionStatusOptions("pending")}
+          </select>
+        </label>
+        <label>
+          Celula principal
+          <select name="primaryCellId">
+            ${renderCellSelectOptions("")}
+          </select>
+        </label>
+        <label>
+          Escopo supervisionado
+          <input name="scopeCellIds" type="text" placeholder="cell-azul, cell-vinho" />
+        </label>
+        <label>
+          Ministerio
+          <input name="ministryName" type="text" placeholder="Ex.: Supervisao setor norte" />
+        </label>
+        <label>
+          Observacoes
+          <textarea name="notes" placeholder="Observacoes internas sobre este acesso"></textarea>
+        </label>
+        <label class="plus-inline-checkbox">
+          <input name="sendPasswordReset" type="checkbox" value="1" checked />
+          <span>Enviar e-mail de redefinicao logo apos criar a conta</span>
+        </label>
+        <div class="plus-card-actions">
+          <button type="submit" class="plus-inline-button">Criar acesso</button>
+        </div>
+      </form>
+    `;
   }
 
   function renderMetaPairs(items) {
@@ -878,6 +986,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeCell.id ? "Salvar alteracoes" : "Criar celula"}</button>
           <button type="button" class="plus-secondary-button" data-new-cell="true">Nova celula</button>
+          ${safeCell.id && canDeleteCell() ? renderDeleteButton("Excluir celula", "delete-cell", safeCell.id) : ""}
         </div>
       </form>
     `;
@@ -978,6 +1087,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeMember.id ? "Salvar membro" : "Cadastrar membro"}</button>
           <button type="button" class="plus-secondary-button" data-new-member="true">Novo membro</button>
+          ${safeMember.id && canDeleteManagedRecord() ? renderDeleteButton("Excluir membro", "delete-member", safeMember.id) : ""}
         </div>
       </form>
     `;
@@ -1100,6 +1210,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeReport.id ? "Salvar relatorio" : "Criar relatorio"}</button>
           <button type="button" class="plus-secondary-button" data-new-report="true">Novo relatorio</button>
+          ${safeReport.id && canDeleteReport(safeReport) ? renderDeleteButton("Excluir relatorio", "delete-report", safeReport.id) : ""}
         </div>
       </form>
     `;
@@ -1172,6 +1283,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeStudy.id ? "Salvar estudo" : "Publicar estudo"}</button>
           <button type="button" class="plus-secondary-button" data-new-study="true">Novo estudo</button>
+          ${safeStudy.id && canManageStudies() ? renderDeleteButton("Excluir estudo", "delete-study", safeStudy.id) : ""}
         </div>
       </form>
     `;
@@ -1280,6 +1392,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeVisitor.id ? "Salvar visitante" : "Registrar visitante"}</button>
           <button type="button" class="plus-secondary-button" data-new-visitor="true">Novo visitante</button>
+          ${safeVisitor.id && canDeleteManagedRecord() ? renderDeleteButton("Excluir visitante", "delete-visitor", safeVisitor.id) : ""}
         </div>
       </form>
     `;
@@ -1402,6 +1515,7 @@
         <div class="plus-card-actions">
           <button type="submit" class="plus-inline-button">${safeAlert.id ? "Salvar alerta" : "Criar alerta"}</button>
           <button type="button" class="plus-secondary-button" data-new-alert="true">Novo alerta</button>
+          ${safeAlert.id && canDeleteManagedRecord() ? renderDeleteButton("Excluir alerta", "delete-alert", safeAlert.id) : ""}
         </div>
       </form>
     `;
@@ -1520,6 +1634,7 @@
   function buildAccessCardsV2() {
     const editable = getEditableProfile();
     const canAssignAdmin = state.profile?.role === "admin";
+    const legacy = state.legacySummary;
 
     return [
       {
@@ -1536,11 +1651,11 @@
         span: "8",
         kicker: "Fluxo de entrada",
         title: "Como novos usuarios entram",
-        body: "Agora a porta de entrada pode ser a propria tela de cadastro da Renovo+. O admin ou pastor entra aqui depois para revisar o perfil ministerial.",
+        body: "A Renovo+ agora trabalha com acesso criado pela administracao. Depois disso, o proprio usuario entra, redefine a senha se precisar e opera so dentro do escopo liberado.",
         items: [
-          "O usuario cria a propria conta com e-mail e senha.",
-          "A primeira conta vira admin automaticamente.",
-          "As proximas contas entram como pending e aparecem na lista de perfis.",
+          "Admin ou pastor cria a conta com senha temporaria por este modulo.",
+          "A primeira conta continua podendo assumir o bootstrap inicial.",
+          "Depois do cadastro, o perfil ja fica pronto para receber papel, status e escopo.",
         ],
       },
       {
@@ -1603,10 +1718,43 @@
               </label>
               <div class="plus-card-actions">
                 <button type="submit" class="plus-inline-button">Salvar perfil</button>
+                ${editable.email ? `<button type="button" class="plus-secondary-button" data-send-reset-email="${escapeHtml(editable.email)}">Enviar redefinicao</button>` : ""}
               </div>
+              <p class="plus-muted-note">Use a redefinicao para trocar a senha sem depender do console do Firebase.</p>
             </form>
           `
           : `<p>Nenhum perfil selecionado ainda.</p>`,
+      },
+      {
+        span: "6",
+        kicker: "Novo acesso",
+        title: "Criar conta com e-mail e senha",
+        html: buildProvisionFormHtml(),
+      },
+      {
+        span: "6",
+        kicker: "Migracao",
+        title: "Trazer dados da V1",
+        body: legacy
+          ? "A leitura da base antiga ja encontrou dados suficientes para iniciar a migracao da V1 para a Renovo+."
+          : "Quando a leitura da V1 estiver disponivel, este modulo mostra o resumo do que pode ser trazido para a base nova.",
+        metrics: legacy
+          ? [
+              { value: String(legacy.cells), label: "Celulas da V1" },
+              { value: String(legacy.members), label: "Membros mapeados" },
+              { value: String(legacy.reports), label: "Relatorios legados" },
+              { value: String(legacy.visitors), label: "Visitantes importaveis" },
+              { value: String(legacy.studies), label: "Estudos com arquivo" },
+              { value: String(legacy.unlinkedVisitors), label: "Visitantes sem celula" },
+            ]
+          : [],
+        html: `
+          <div class="plus-card-actions">
+            <button type="button" class="plus-inline-button" data-import-legacy="true">Importar dados da V1</button>
+          </div>
+          <p class="plus-muted-note">Perfis legados nao entram automaticamente porque a V2 usa Firebase Auth por uid. Estudos sem arquivo remoto continuam de fora e precisam ser republicados.</p>
+          ${legacy && legacy.studiesMissingFile > 0 ? `<p class="plus-muted-note">${escapeHtml(`${legacy.studiesMissingFile} estudo(s) da V1 ainda sem PDF remoto importavel.`)}</p>` : ""}
+        `,
       },
     ];
   }
@@ -1619,13 +1767,13 @@
         title: "Conta autenticada, mas ainda sem governanca liberada",
         body: state.profile
           ? "Seu cadastro ja existe, mas o papel ou o status ainda nao liberaram os modulos finais da Renovo+."
-          : "A autenticacao funcionou, mas ainda nao encontramos um documento em renovo_plus_users para este uid.",
+          : "A autenticacao funcionou, mas este acesso ainda nao recebeu um perfil completo dentro da Renovo+.",
         items: [
           `UID autenticado: ${state.authUser?.uid || "-"}`,
           `E-mail: ${state.authUser?.email || "-"}`,
           state.profile
             ? `Role atual: ${ROLE_LABELS[normalizeRole(state.profile.role)] || "Sem perfil"}`
-            : "Crie um documento de perfil ou use o bootstrap se este for o primeiro acesso.",
+            : "Se este nao for o primeiro admin, um pastor ou admin precisa concluir a liberacao pelo modulo de acessos.",
         ],
       },
       {
@@ -1836,6 +1984,39 @@
     }
   }
 
+  async function handlePasswordResetRequest() {
+    const email = String(emailInput?.value || "").trim();
+    if (!email) {
+      setFeedback("Informe o e-mail para enviar a redefinicao de senha.");
+      emailInput?.focus();
+      return;
+    }
+
+    try {
+      if (resetPasswordButton) {
+        resetPasswordButton.disabled = true;
+        resetPasswordButton.textContent = "Enviando...";
+      }
+      setFeedback("Enviando e-mail de redefinicao...", "soft");
+      await window.renovoPlusFirebase.sendPasswordReset(email);
+      setFeedback("E-mail de redefinicao enviado. Confira sua caixa de entrada.", "soft");
+    } catch (error) {
+      const code = String(error?.code || "");
+      if (code.includes("invalid-email")) {
+        setFeedback("Informe um e-mail valido para redefinir a senha.");
+      } else if (code.includes("user-not-found")) {
+        setFeedback("Esse e-mail ainda nao possui acesso criado na Renovo+.");
+      } else {
+        setFeedback(error?.message || "Nao foi possivel enviar a redefinicao agora.");
+      }
+    } finally {
+      if (resetPasswordButton) {
+        resetPasswordButton.disabled = false;
+        resetPasswordButton.textContent = "Esqueci minha senha";
+      }
+    }
+  }
+
   async function handleSignOut() {
     try {
       signOutButton.disabled = true;
@@ -1868,6 +2049,7 @@
     updateUserSummary();
 
     authForm?.addEventListener("submit", handleLogin);
+    resetPasswordButton?.addEventListener("click", handlePasswordResetRequest);
     signOutButton?.addEventListener("click", handleSignOut);
     nav?.addEventListener("click", handleNavClick);
 
@@ -1894,10 +2076,9 @@
     if (!state.profile) {
       profileWarning.hidden = false;
       profileWarning.innerHTML = `
-        <strong>Perfil ainda nao encontrado.</strong><br />
-        O uid autenticado e <code>${escapeHtml(state.authUser.uid)}</code>. Crie o documento correspondente em
-        <code>${escapeHtml(window.renovoPlusFirebase?.collections?.users || "renovo_plus_users")}/${escapeHtml(state.authUser.uid)}</code>
-        para liberar modulos e permissoes.
+        <strong>Acesso autenticado, mas ainda sem perfil liberado.</strong><br />
+        O uid autenticado e <code>${escapeHtml(state.authUser.uid)}</code>. Se esta conta nao for o primeiro admin da V2,
+        um pastor ou admin precisa terminar a liberacao pelo modulo de acessos.
       `;
       return;
     }
@@ -1960,6 +2141,7 @@
     state.hasAnyProfiles = false;
     state.profiles = [];
     state.allCells = [];
+    state.legacySummary = null;
 
     try {
       state.hasAnyProfiles = await window.renovoPlusFirebase.hasAnyProfiles();
@@ -1973,13 +2155,15 @@
     }
 
     try {
-      const [profiles, allCells] = await Promise.all([
+      const [profiles, allCells, legacySummary] = await Promise.all([
         window.renovoPlusFirebase.listProfiles(),
         window.renovoPlusFirebase.listAllCells(),
+        window.renovoPlusFirebase.loadLegacySummary().catch(() => null),
       ]);
 
       state.profiles = profiles;
       state.allCells = allCells;
+      state.legacySummary = legacySummary;
 
       if (profiles.some((profile) => profile.uid === state.selectedProfileUid)) {
         return;
@@ -2004,6 +2188,7 @@
     state.alerts = [];
     state.profiles = [];
     state.hasAnyProfiles = false;
+    state.legacySummary = null;
     state.selectedProfileUid = "";
     state.selectedCellId = "";
     state.selectedMemberId = "";
@@ -2141,6 +2326,177 @@
         submitButton.disabled = false;
         submitButton.textContent = "Salvar perfil";
       }
+    }
+  }
+
+  async function handleProvisionAccess(event) {
+    event.preventDefault();
+    if (!canManageAccess()) {
+      setStatus("Somente admin ou pastor podem criar acessos", "danger");
+      return;
+    }
+
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    const scopeCellIds = String(formData.get("scopeCellIds") || "")
+      .split(/[,\n;]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    try {
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Criando...";
+      }
+
+      setStatus("Criando novo acesso", "warn");
+      const created = await window.renovoPlusFirebase.provisionManagedAccess({
+        name: String(formData.get("name") || "").trim(),
+        email: String(formData.get("email") || "").trim(),
+        temporaryPassword: String(formData.get("temporaryPassword") || ""),
+        role: String(formData.get("role") || "pending").trim(),
+        status: String(formData.get("status") || "pending").trim(),
+        primaryCellId: String(formData.get("primaryCellId") || "").trim(),
+        scopeCellIds,
+        ministryName: String(formData.get("ministryName") || "").trim(),
+        notes: String(formData.get("notes") || "").trim(),
+      }, {
+        sendPasswordReset: formData.get("sendPasswordReset") === "1",
+      });
+
+      await refreshProfile(state.authUser);
+      state.selectedProfileUid = created?.uid || "";
+      state.route = "access";
+      renderPage();
+      form.reset();
+      setStatus("Acesso criado", "ok");
+    } catch (error) {
+      console.warn("[Renovo+] provision access:", error?.message || error);
+      const code = String(error?.code || "");
+      if (code.includes("email-already-in-use")) {
+        setStatus("Esse e-mail ja possui conta criada no Firebase", "danger");
+      } else if (code.includes("invalid-email")) {
+        setStatus("Informe um e-mail valido para criar o acesso", "danger");
+      } else if (code.includes("weak-password")) {
+        setStatus("Use uma senha temporaria mais forte", "danger");
+      } else {
+        setStatus("Falha ao criar o acesso", "danger");
+      }
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Criar acesso";
+      }
+    }
+  }
+
+  async function handleManagedPasswordReset(email) {
+    const normalizedEmail = String(email || "").trim();
+    if (!normalizedEmail) {
+      setStatus("Perfil sem e-mail para redefinicao", "danger");
+      return;
+    }
+
+    try {
+      setStatus("Enviando redefinicao", "warn");
+      await window.renovoPlusFirebase.sendPasswordReset(normalizedEmail);
+      setStatus("Redefinicao enviada", "ok");
+    } catch (error) {
+      console.warn("[Renovo+] password reset:", error?.message || error);
+      setStatus("Falha ao enviar redefinicao", "danger");
+    }
+  }
+
+  async function handleImportLegacy(button) {
+    if (!canManageAccess()) {
+      setStatus("Somente admin ou pastor podem importar a V1", "danger");
+      return;
+    }
+
+    if (!window.confirm("Importar os dados da V1 para a Renovo+ agora? Esse processo sincroniza celulas, membros, relatorios, visitantes e estudos com arquivo remoto.")) {
+      return;
+    }
+
+    const originalText = button?.textContent || "";
+
+    try {
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Importando...";
+      }
+
+      setStatus("Importando dados da V1", "warn");
+      const summary = await window.renovoPlusFirebase.importLegacyData(state.authUser?.uid || "");
+      await refreshProfile(state.authUser);
+      state.route = "access";
+      renderPage();
+      setStatus(
+        `Importacao concluida: ${summary.cells} celulas, ${summary.members} membros, ${summary.reports} relatorios, ${summary.visitors} visitantes e ${summary.studies} estudos.`,
+        "ok"
+      );
+    } catch (error) {
+      console.warn("[Renovo+] import legacy:", error?.message || error);
+      setStatus("Falha ao importar a V1", "danger");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText || "Importar dados da V1";
+      }
+    }
+  }
+
+  async function handleDeleteAction(entity, entityId) {
+    const normalizedEntity = String(entity || "").trim();
+    const normalizedId = String(entityId || "").trim();
+    if (!normalizedEntity || !normalizedId) {
+      return;
+    }
+
+    const messages = {
+      cell: "Excluir esta celula e os dados vinculados a ela?",
+      member: "Excluir este membro da Renovo+?",
+      report: "Excluir este relatorio da Renovo+?",
+      study: "Excluir este estudo e o PDF vinculado?",
+      visitor: "Excluir este visitante da Renovo+?",
+      alert: "Excluir este alerta da Renovo+?",
+    };
+
+    if (!window.confirm(messages[normalizedEntity] || "Confirmar exclusao deste registro?")) {
+      return;
+    }
+
+    try {
+      setStatus("Excluindo registro", "warn");
+
+      if (normalizedEntity === "cell") {
+        await window.renovoPlusFirebase.deleteCell(normalizedId);
+      } else if (normalizedEntity === "member") {
+        await window.renovoPlusFirebase.deleteMember(normalizedId);
+      } else if (normalizedEntity === "report") {
+        await window.renovoPlusFirebase.deleteReport(normalizedId);
+      } else if (normalizedEntity === "study") {
+        await window.renovoPlusFirebase.deleteStudy(normalizedId);
+      } else if (normalizedEntity === "visitor") {
+        await window.renovoPlusFirebase.deleteVisitor(normalizedId);
+      } else if (normalizedEntity === "alert") {
+        await window.renovoPlusFirebase.deleteAlert(normalizedId);
+      } else {
+        return;
+      }
+
+      await refreshProfile(state.authUser);
+      state.route = normalizedEntity === "cell" ? "cells"
+        : normalizedEntity === "member" ? "members"
+          : normalizedEntity === "report" ? "reports"
+            : normalizedEntity === "study" ? "studies"
+              : normalizedEntity === "visitor" ? "visitors"
+                : "alerts";
+      renderPage();
+      setStatus("Registro excluido", "ok");
+    } catch (error) {
+      console.warn("[Renovo+] delete action:", error?.message || error);
+      setStatus("Falha ao excluir registro", "danger");
     }
   }
 
@@ -2512,6 +2868,36 @@
   }
 
   function handlePageClick(event) {
+    const resetButton = event.target.closest("[data-send-reset-email]");
+    if (resetButton) {
+      handleManagedPasswordReset(String(resetButton.dataset.sendResetEmail || "").trim());
+      return;
+    }
+
+    const importButton = event.target.closest("[data-import-legacy]");
+    if (importButton) {
+      handleImportLegacy(importButton);
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-cell], [data-delete-member], [data-delete-report], [data-delete-study], [data-delete-visitor], [data-delete-alert]");
+    if (deleteButton) {
+      if (deleteButton.dataset.deleteCell) {
+        handleDeleteAction("cell", deleteButton.dataset.deleteCell);
+      } else if (deleteButton.dataset.deleteMember) {
+        handleDeleteAction("member", deleteButton.dataset.deleteMember);
+      } else if (deleteButton.dataset.deleteReport) {
+        handleDeleteAction("report", deleteButton.dataset.deleteReport);
+      } else if (deleteButton.dataset.deleteStudy) {
+        handleDeleteAction("study", deleteButton.dataset.deleteStudy);
+      } else if (deleteButton.dataset.deleteVisitor) {
+        handleDeleteAction("visitor", deleteButton.dataset.deleteVisitor);
+      } else if (deleteButton.dataset.deleteAlert) {
+        handleDeleteAction("alert", deleteButton.dataset.deleteAlert);
+      }
+      return;
+    }
+
     const button = event.target.closest("[data-select-profile]");
     if (!button) {
       const routeButton = event.target.closest("[data-dashboard-route]");
@@ -2657,6 +3043,11 @@
 
     if (form.id === "plus-profile-form") {
       handleProfileSave(event);
+      return;
+    }
+
+    if (form.id === "plus-provision-form") {
+      handleProvisionAccess(event);
       return;
     }
 

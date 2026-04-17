@@ -72,8 +72,8 @@
     <div id="plus-loading-screen" class="plus-loading-screen">
       <div class="plus-loading-card">
         <p class="plus-eyebrow">Renovo+ V2</p>
-        <h1>Fundação do novo app</h1>
-        <p>Preparando autenticação, módulos e estrutura do sistema.</p>
+        <h1>Preparando a Renovo+</h1>
+        <p>Carregando autenticação, módulos e dados do seu acesso.</p>
       </div>
     </div>
 
@@ -83,28 +83,28 @@
           <p class="plus-eyebrow">Igreja Renovo</p>
           <h1>Renovo+</h1>
           <p class="plus-auth-lead">
-            Nova base do sistema com autenticação real, permissões por papel e dados separados por módulo.
+            Base nova da Igreja Renovo com autenticação real, acessos por papel e dados organizados por módulo.
           </p>
           <div class="plus-auth-highlights">
             <article>
               <strong>Auth</strong>
-              <span>Firebase Auth com sessão persistente por usuário.</span>
+              <span>Login com e-mail e senha, sessão persistente e redefinição de acesso.</span>
             </article>
             <article>
               <strong>Escopo</strong>
-              <span>Cada pessoa acessa só as células permitidas pelo próprio perfil.</span>
+              <span>Cada pessoa acessa só as células liberadas no próprio perfil.</span>
             </article>
             <article>
-              <strong>Estrutura</strong>
-              <span>Base preparada para relatórios, estudos, visitantes e auditoria.</span>
+              <strong>Gestão</strong>
+              <span>Admin e pastor podem criar acessos, migrar dados e organizar a base nova.</span>
             </article>
           </div>
         </div>
 
         <form id="plus-auth-form" class="plus-auth-form">
           <div class="plus-auth-head">
-            <span class="plus-chip">Fundação pronta para V2</span>
-            <p>Entrar com o acesso que será usado no novo app.</p>
+            <span class="plus-chip">Acesso oficial da V2</span>
+            <p>Entre com o e-mail liberado para a sua conta na Renovo+.</p>
           </div>
 
           <label>
@@ -117,7 +117,11 @@
             <input id="plus-password-input" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required />
           </label>
 
-          <button id="plus-login-button" type="submit">Entrar na Renovo+</button>
+          <div class="plus-auth-actions">
+            <button id="plus-login-button" type="submit">Entrar na Renovo+</button>
+            <button id="plus-reset-password-button" type="button" class="plus-secondary-button">Esqueci minha senha</button>
+          </div>
+          <p class="plus-auth-help">Se o acesso ainda não foi criado, um admin ou pastor precisa liberar sua conta primeiro.</p>
           <p id="plus-auth-feedback" class="plus-auth-feedback" aria-live="polite"></p>
         </form>
       </section>
@@ -143,7 +147,7 @@
         </nav>
 
         <div class="plus-sidebar-footer">
-          <p>Esta fundação está isolada da V1 para podermos evoluir com segurança.</p>
+          <p>Esta base segue separada da V1 enquanto a migração e a validação da nova estrutura acontecem.</p>
         </div>
       </aside>
 

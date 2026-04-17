@@ -11,6 +11,18 @@
     alerts: "renovo_plus_alerts",
   };
 
+  const LEGACY = {
+    collection: "renovo",
+    stateDoc: "state",
+    cellsDoc: "cells",
+    reportsDoc: "reports",
+    reportsMetaDoc: "reports_meta",
+    visitorsDoc: "visitantes",
+    usersDoc: "users",
+    reportPrefix: "report__",
+    reportEnd: "report__\uf8ff",
+  };
+
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAkVidPhtpX-o2gGlvTkdbYlQ7CJmMl3fs",
     authDomain: "ambiente-renovo.firebaseapp.com",
@@ -314,6 +326,485 @@
     };
   }
 
+  function getLegacyCollection() {
+    return api.db.collection(LEGACY.collection);
+  }
+
+  function normalizeLookup(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function buildProfileNameIndex(profiles) {
+    const index = new Map();
+    (Array.isArray(profiles) ? profiles : []).forEach((profile) => {
+      const candidates = [
+        profile?.name,
+        profile?.email,
+        String(profile?.email || "").split("@")[0],
+      ];
+      candidates
+        .map((value) => normalizeLookup(value))
+        .filter(Boolean)
+        .forEach((key) => {
+          if (!index.has(key)) {
+            index.set(key, String(profile.uid || "").trim());
+          }
+        });
+    });
+    return index;
+  }
+
+  function pickLeaderUid(text, profileIndex) {
+    const parts = String(text || "")
+      .split(/\s*(?:,|;|\/| e | & )\s*/i)
+      .map((value) => normalizeLookup(value))
+      .filter(Boolean);
+
+    for (const part of parts) {
+      if (profileIndex.has(part)) {
+        return profileIndex.get(part);
+      }
+    }
+
+    return "";
+  }
+
+  function parseLooseNumber(value) {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return 0;
+    }
+
+    let cleaned = raw.replace(/[^0-9,.\-]/g, "");
+    if (!cleaned) {
+      return 0;
+    }
+
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      cleaned = cleaned.replace(/,/g, "");
+    }
+
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function buildDisplayNameFromEmail(email) {
+    const raw = String(email || "").trim();
+    if (!raw.includes("@")) {
+      return raw || "Novo usuario";
+    }
+    return raw.split("@")[0] || "Novo usuario";
+  }
+
+  function buildImportedDocId(prefix, parts) {
+    const suffix = (Array.isArray(parts) ? parts : [parts])
+      .map((value) => slugifyId(String(value || "").trim()) || "item")
+      .filter(Boolean)
+      .join("-");
+    return `${prefix}-${suffix}`.slice(0, 120);
+  }
+
+  function normalizeLegacyCell(cell) {
+    if (!cell || typeof cell !== "object") {
+      return null;
+    }
+
+    const id = String(cell.id || "").trim();
+    const name = String(cell.name || "").trim();
+    if (!id || !name) {
+      return null;
+    }
+
+    return {
+      id,
+      name,
+      meetingDay: String(cell.meetingDay || "").trim(),
+      meetingTime: String(cell.meetingTime || "").trim(),
+      address: String(cell.neighborhood || cell.address || "").trim(),
+      leader: String(cell.leader || "").trim(),
+      members: Array.isArray(cell.members)
+        ? cell.members
+          .map((member) => {
+            if (!member || typeof member !== "object") {
+              return null;
+            }
+            const memberName = String(member.name || "").trim();
+            if (!memberName) {
+              return null;
+            }
+            return {
+              id: String(member.id || "").trim(),
+              name: memberName,
+              phone: String(member.phone || "").trim(),
+            };
+          })
+          .filter(Boolean)
+        : [],
+      createdAt: String(cell.createdAt || "").trim(),
+    };
+  }
+
+  function normalizeLegacyReport(report) {
+    if (!report || typeof report !== "object") {
+      return null;
+    }
+
+    const id = String(report.id || "").trim();
+    const cellId = String(report.cellId || "").trim();
+    const date = String(report.date || "").trim();
+    if (!id || !cellId || !date) {
+      return null;
+    }
+
+    return {
+      id,
+      cellId,
+      date,
+      leaders: String(report.leaders || "").trim(),
+      coLeaders: String(report.coLeaders || "").trim(),
+      host: String(report.host || "").trim(),
+      address: String(report.address || "").trim(),
+      presentMemberIds: Array.isArray(report.presentMemberIds)
+        ? report.presentMemberIds.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : [],
+      visitorsCount: Number(report.visitorsCount || 0) || 0,
+      visitorNames: Array.isArray(report.visitorNames)
+        ? report.visitorNames.map((entry) => String(entry || "").trim()).filter(Boolean)
+        : [],
+      visitorDetails: Array.isArray(report.visitorDetails)
+        ? report.visitorDetails
+          .map((visitor) => {
+            const name = String(visitor?.name || "").trim();
+            if (!name) {
+              return null;
+            }
+            return {
+              name,
+              how: String(visitor?.how || "").trim(),
+              address: String(visitor?.address || "").trim(),
+              phone: String(visitor?.phone || "").trim(),
+              visitType: visitor?.visitType === "returning" ? "returning" : "first",
+            };
+          })
+          .filter(Boolean)
+        : [],
+      offering: report.offering,
+      foods: String(report.foods || "").trim(),
+      snack: String(report.snack || "").trim(),
+      discipleship: String(report.discipleship || "").trim(),
+      visits: report.visits,
+      conversions: report.conversions,
+      communionMinutes: Number(report.communionMinutes || 0) || 0,
+      createdAt: String(report.createdAt || "").trim(),
+      updatedAt: String(report.updatedAt || "").trim(),
+    };
+  }
+
+  function normalizeLegacyVisitor(visitor) {
+    if (!visitor || typeof visitor !== "object") {
+      return null;
+    }
+
+    const name = String(visitor.name || "").trim();
+    if (!name) {
+      return null;
+    }
+
+    return {
+      id: String(visitor.id || "").trim(),
+      name,
+      phone: String(visitor.phone || "").trim(),
+      address: String(visitor.address || "").trim(),
+      age: String(visitor.age || "").trim(),
+      cellId: String(visitor.cellId || "").trim(),
+      cellName: String(visitor.cellName || "").trim(),
+      registeredAt: String(visitor.registeredAt || "").trim(),
+    };
+  }
+
+  function normalizeLegacyStudy(study) {
+    if (!study || typeof study !== "object") {
+      return null;
+    }
+
+    const title = String(study.title || "").trim();
+    if (!title) {
+      return null;
+    }
+
+    return {
+      id: String(study.id || "").trim(),
+      title,
+      description: String(study.description || "").trim(),
+      audience: String(study.audience || "all").trim() || "all",
+      storagePath: String(study.storagePath || "").trim(),
+      downloadUrl: String(study.downloadUrl || study.pdfUrl || "").trim(),
+      fileName: String(study.fileName || "").trim(),
+      hasEmbeddedPdf: study.hasEmbeddedPdf === true,
+      createdAt: String(study.createdAt || "").trim(),
+      updatedAt: String(study.updatedAt || "").trim(),
+    };
+  }
+
+  function getLegacyReportIdentity(report) {
+    const id = String(report?.id || "").trim();
+    if (id) {
+      return `id:${id}`;
+    }
+
+    const cellId = String(report?.cellId || "").trim();
+    const date = String(report?.date || "").trim();
+    return cellId || date ? `cell:${cellId}|${date}` : "";
+  }
+
+  function mergeLegacyReports(primaryReports, fallbackReports) {
+    const merged = new Map();
+
+    [fallbackReports, primaryReports].forEach((list) => {
+      (Array.isArray(list) ? list : []).forEach((report) => {
+        const normalized = normalizeLegacyReport(report);
+        if (!normalized) {
+          return;
+        }
+
+        const key = getLegacyReportIdentity(normalized);
+        if (!key) {
+          return;
+        }
+
+        const current = merged.get(key);
+        const currentStamp = new Date(current?.updatedAt || current?.createdAt || 0).getTime();
+        const incomingStamp = new Date(normalized.updatedAt || normalized.createdAt || 0).getTime();
+        if (!current || incomingStamp >= currentStamp) {
+          merged.set(key, normalized);
+        }
+      });
+    });
+
+    return Array.from(merged.values());
+  }
+
+  async function loadLegacyPerDocReports() {
+    const documentId = firebase.firestore.FieldPath.documentId();
+    const snapshot = await getLegacyCollection()
+      .orderBy(documentId)
+      .startAt(LEGACY.reportPrefix)
+      .endAt(LEGACY.reportEnd)
+      .get();
+
+    return snapshot.docs
+      .map((doc) => normalizeLegacyReport(doc.data()))
+      .filter(Boolean);
+  }
+
+  async function loadLegacyBundle() {
+    initialize();
+    if (!api.db) {
+      throw new Error("Firestore indisponivel para ler a V1.");
+    }
+
+    const [stateDoc, cellsDoc, reportsDoc, visitorsDoc, reportsMetaDoc, usersDoc, perDocReports] = await Promise.all([
+      getLegacyCollection().doc(LEGACY.stateDoc).get(),
+      getLegacyCollection().doc(LEGACY.cellsDoc).get(),
+      getLegacyCollection().doc(LEGACY.reportsDoc).get(),
+      getLegacyCollection().doc(LEGACY.visitorsDoc).get(),
+      getLegacyCollection().doc(LEGACY.reportsMetaDoc).get(),
+      getLegacyCollection().doc(LEGACY.usersDoc).get(),
+      loadLegacyPerDocReports().catch(() => []),
+    ]);
+
+    const stateData = stateDoc.exists ? stateDoc.data() : {};
+    const cells = cellsDoc.exists && Array.isArray(cellsDoc.data()?.list)
+      ? cellsDoc.data().list
+      : Array.isArray(stateData?.cells)
+        ? stateData.cells
+        : [];
+
+    const legacyReports = reportsDoc.exists && Array.isArray(reportsDoc.data()?.list)
+      ? reportsDoc.data().list
+      : Array.isArray(stateData?.reports)
+        ? stateData.reports
+        : [];
+
+    const perDocModeReady = reportsMetaDoc.exists && reportsMetaDoc.data()?.storageMode === "per_doc";
+    const reports = perDocModeReady
+      ? perDocReports
+      : mergeLegacyReports(perDocReports, legacyReports);
+
+    const visitors = visitorsDoc.exists && Array.isArray(visitorsDoc.data()?.list)
+      ? visitorsDoc.data().list
+      : [];
+
+    const studies = Array.isArray(stateData?.studies) ? stateData.studies : [];
+    const users = usersDoc.exists && Array.isArray(usersDoc.data()?.list)
+      ? usersDoc.data().list
+      : [];
+
+    return {
+      cells: cells.map((entry) => normalizeLegacyCell(entry)).filter(Boolean),
+      reports: reports.map((entry) => normalizeLegacyReport(entry)).filter(Boolean),
+      visitors: visitors.map((entry) => normalizeLegacyVisitor(entry)).filter(Boolean),
+      studies: studies.map((entry) => normalizeLegacyStudy(entry)).filter(Boolean),
+      users,
+    };
+  }
+
+  function buildLegacyReportNotes(report) {
+    const lines = [
+      report?.coLeaders ? `Co-lideres: ${report.coLeaders}` : "",
+      report?.foods ? `Alimentos: ${report.foods}` : "",
+      report?.snack ? `Lanche: ${report.snack}` : "",
+      report?.discipleship ? `Discipulado: ${report.discipleship}` : "",
+      Number(report?.visits || 0) > 0 ? `Visitas: ${Number(report.visits || 0)}` : "",
+      Number(report?.conversions || 0) > 0 ? `Conversoes: ${Number(report.conversions || 0)}` : "",
+      Number(report?.communionMinutes || 0) > 0 ? `Ceia: ${Number(report.communionMinutes || 0)} min` : "",
+    ].filter(Boolean);
+
+    return lines.join("\n");
+  }
+
+  function resolveLegacyVisitorCell(visitor, cells, recurringMap) {
+    const directCellId = String(visitor?.cellId || "").trim();
+    if (directCellId && cells.some((cell) => cell.id === directCellId)) {
+      return directCellId;
+    }
+
+    const directCellName = normalizeLookup(visitor?.cellName);
+    if (directCellName) {
+      const matchedCell = cells.find((cell) => normalizeLookup(cell.name) === directCellName);
+      if (matchedCell) {
+        return matchedCell.id;
+      }
+    }
+
+    const recurring = recurringMap.get(normalizeLookup(visitor?.name));
+    return recurring?.count > 1 ? recurring.cellId : "";
+  }
+
+  function buildLegacyVisitors(bundle) {
+    const cells = Array.isArray(bundle?.cells) ? bundle.cells : [];
+    const reports = Array.isArray(bundle?.reports) ? bundle.reports : [];
+    const legacyVisitors = Array.isArray(bundle?.visitors) ? bundle.visitors : [];
+    const recurringMap = new Map();
+    const imported = new Map();
+    let skippedUnlinked = 0;
+
+    reports.forEach((report) => {
+      (Array.isArray(report.visitorDetails) ? report.visitorDetails : []).forEach((visitor) => {
+        const key = normalizeLookup(visitor?.name);
+        if (!key || !report.cellId) {
+          return;
+        }
+
+        const currentRecurring = recurringMap.get(key) || { cellId: report.cellId, count: 0 };
+        if (currentRecurring.cellId !== report.cellId && currentRecurring.count <= 1) {
+          currentRecurring.cellId = report.cellId;
+        }
+        currentRecurring.count += 1;
+        recurringMap.set(key, currentRecurring);
+
+        const importedKey = `${report.cellId}::${key}`;
+        const current = imported.get(importedKey) || {
+          id: buildImportedDocId("legacy-visitor", [report.cellId, visitor.name]),
+          cellId: report.cellId,
+          name: String(visitor.name || "").trim(),
+          phone: String(visitor.phone || "").trim(),
+          address: String(visitor.address || "").trim(),
+          origin: String(visitor.how || "").trim(),
+          context: "Importado dos relatórios da V1.",
+          status: "new",
+          firstVisitAt: String(report.date || "").trim(),
+          lastVisitAt: String(report.date || "").trim(),
+          visitCount: 0,
+          notes: "",
+        };
+
+        current.visitCount += 1;
+        current.firstVisitAt = [current.firstVisitAt, String(report.date || "").trim()].filter(Boolean).sort()[0] || "";
+        current.lastVisitAt = [current.lastVisitAt, String(report.date || "").trim()].filter(Boolean).sort().slice(-1)[0] || "";
+        current.phone = current.phone || String(visitor.phone || "").trim();
+        current.address = current.address || String(visitor.address || "").trim();
+        current.origin = current.origin || String(visitor.how || "").trim();
+        current.status = current.visitCount > 1 ? "returning" : "new";
+        imported.set(importedKey, current);
+      });
+    });
+
+    legacyVisitors.forEach((visitor) => {
+      const nameKey = normalizeLookup(visitor?.name);
+      if (!nameKey) {
+        return;
+      }
+
+      const cellId = resolveLegacyVisitorCell(visitor, cells, recurringMap);
+      if (!cellId) {
+        skippedUnlinked += 1;
+        return;
+      }
+
+      const importedKey = `${cellId}::${nameKey}`;
+      const registeredAt = String(visitor.registeredAt || "").slice(0, 10);
+      const current = imported.get(importedKey) || {
+        id: buildImportedDocId("legacy-visitor", [cellId, visitor.id || visitor.name]),
+        cellId,
+        name: String(visitor.name || "").trim(),
+        phone: String(visitor.phone || "").trim(),
+        address: String(visitor.address || "").trim(),
+        origin: "",
+        context: visitor.age ? `Idade registrada na V1: ${visitor.age}` : "Importado da lista pública de visitantes da V1.",
+        status: "new",
+        firstVisitAt: registeredAt,
+        lastVisitAt: registeredAt,
+        visitCount: 1,
+        notes: "",
+      };
+
+      current.phone = current.phone || String(visitor.phone || "").trim();
+      current.address = current.address || String(visitor.address || "").trim();
+      current.firstVisitAt = current.firstVisitAt || registeredAt;
+      current.lastVisitAt = current.lastVisitAt || registeredAt;
+      imported.set(importedKey, current);
+    });
+
+    return {
+      visitors: Array.from(imported.values()).sort((left, right) =>
+        String(left.name || "").localeCompare(String(right.name || ""), "pt-BR", { sensitivity: "base" })
+      ),
+      skippedUnlinked,
+    };
+  }
+
+  async function getImportedStudyDownloadUrl(study) {
+    const directUrl = String(study?.downloadUrl || "").trim();
+    if (directUrl) {
+      return directUrl;
+    }
+
+    const storagePath = String(study?.storagePath || "").trim();
+    if (!storagePath || !api.storage) {
+      return "";
+    }
+
+    try {
+      return await api.storage.ref(storagePath).getDownloadURL();
+    } catch (_) {
+      return "";
+    }
+  }
+
   async function loadSystemMeta() {
     initialize();
     if (!api.db) {
@@ -382,6 +873,48 @@
   async function signOut() {
     initialize();
     return api.auth.signOut();
+  }
+
+  async function sendPasswordReset(email) {
+    initialize();
+    const normalizedEmail = String(email || "").trim();
+    if (!normalizedEmail) {
+      throw new Error("Informe um e-mail para redefinir a senha.");
+    }
+    return api.auth.sendPasswordResetEmail(normalizedEmail);
+  }
+
+  function createSecondaryApp() {
+    const appName = `renovo-plus-admin-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return firebase.initializeApp(FIREBASE_CONFIG, appName);
+  }
+
+  async function withSecondaryApp(task) {
+    const app = createSecondaryApp();
+    const auth = typeof app.auth === "function" ? app.auth() : null;
+    const db = typeof app.firestore === "function" ? app.firestore() : null;
+
+    if (!auth || !db) {
+      try {
+        await app.delete();
+      } catch (_) {}
+      throw new Error("Nao foi possivel abrir uma sessao auxiliar para criar o acesso.");
+    }
+
+    try {
+      await auth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    } catch (_) {}
+
+    try {
+      return await task({ app, auth, db });
+    } finally {
+      try {
+        await auth.signOut();
+      } catch (_) {}
+      try {
+        await app.delete();
+      } catch (_) {}
+    }
   }
 
   function observeAuth(listener) {
@@ -473,6 +1006,73 @@
     return normalizeProfile(normalizedUid, payload);
   }
 
+  async function provisionManagedAccess(patch, options = {}) {
+    initialize();
+    if (!api.db) {
+      throw new Error("Firestore indisponivel na Renovo+.");
+    }
+
+    const normalizedName = String(patch?.name || "").trim();
+    const normalizedEmail = String(patch?.email || "").trim();
+    const temporaryPassword = String(patch?.temporaryPassword || "");
+    if (!normalizedName || !normalizedEmail || temporaryPassword.length < 6) {
+      throw new Error("Informe nome, e-mail e uma senha temporaria com pelo menos 6 caracteres.");
+    }
+
+    const created = await withSecondaryApp(async ({ auth, db }) => {
+      const credential = await auth.createUserWithEmailAndPassword(normalizedEmail, temporaryPassword);
+      const user = credential?.user || null;
+      if (!user?.uid) {
+        throw new Error("Nao foi possivel criar o usuario autenticado.");
+      }
+
+      if (typeof user.updateProfile === "function") {
+        try {
+          await user.updateProfile({ displayName: normalizedName });
+        } catch (_) {}
+      }
+
+      const now = new Date().toISOString();
+      await db.collection(COLLECTIONS.users).doc(user.uid).set({
+        name: normalizedName,
+        email: normalizedEmail,
+        role: "pending",
+        status: "pending",
+        primaryCellId: "",
+        scopeCellIds: [],
+        ministryName: "",
+        notes: "Conta criada pela administracao da Renovo+.",
+        createdAt: now,
+        updatedAt: now,
+      }, { merge: true });
+
+      return {
+        uid: user.uid,
+        createdAt: now,
+      };
+    });
+
+    const profile = await saveUserProfile(created.uid, {
+      name: normalizedName,
+      email: normalizedEmail,
+      role: String(patch?.role || "pending").trim(),
+      status: String(patch?.status || "pending").trim(),
+      primaryCellId: String(patch?.primaryCellId || "").trim(),
+      scopeCellIds: Array.isArray(patch?.scopeCellIds) ? patch.scopeCellIds : [],
+      ministryName: String(patch?.ministryName || "").trim(),
+      notes: String(patch?.notes || "Conta criada pela administracao da Renovo+.").trim(),
+    });
+
+    if (options.sendPasswordReset === true) {
+      await sendPasswordReset(normalizedEmail);
+    }
+
+    return {
+      uid: created.uid,
+      profile,
+    };
+  }
+
   async function claimInitialAdminProfile(currentUser, patch) {
     initialize();
     if (!api.db) {
@@ -556,11 +1156,15 @@
     const currentSnapshot = await ref.get();
     const current = currentSnapshot.exists ? normalizeCell(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const coLeaderUids = Array.isArray(patch?.coLeaderUids)
       ? patch.coLeaderUids.map((id) => String(id || "").trim()).filter(Boolean)
       : Array.isArray(current?.coLeaderUids)
-        ? current.coLeaderUids
-        : [];
+          ? current.coLeaderUids
+          : [];
 
     const payload = {
       id: targetId,
@@ -570,15 +1174,15 @@
       address: String(patch?.address || current?.address || "").trim(),
       leaderUid: String(patch?.leaderUid || current?.leaderUid || "").trim(),
       coLeaderUids,
-      status: ["active", "inactive"].includes(String(patch?.status || "").trim().toLowerCase())
-        ? String(patch.status).trim().toLowerCase()
-        : current?.status || "active",
-      notes: String(patch?.notes || current?.notes || "").trim(),
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
-      createdByUid: current?.createdByUid || String(actorUid || "").trim(),
-      updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
-    };
+       status: ["active", "inactive"].includes(String(patch?.status || "").trim().toLowerCase())
+         ? String(patch.status).trim().toLowerCase()
+         : current?.status || "active",
+       notes: String(patch?.notes || current?.notes || "").trim(),
+       createdAt,
+       updatedAt,
+       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
+       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
+     };
 
     await ref.set(payload, { merge: true });
     return normalizeCell(targetId, payload);
@@ -598,6 +1202,10 @@
     const currentSnapshot = requestedId ? await ref.get() : null;
     const current = currentSnapshot?.exists ? normalizeMember(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const payload = {
       id: ref.id,
       cellId: String(patch?.cellId || current?.cellId || "").trim(),
@@ -607,8 +1215,8 @@
       status: String(patch?.status || current?.status || "active").trim() || "active",
       joinedAt: String(patch?.joinedAt || current?.joinedAt || "").trim(),
       notes: String(patch?.notes || current?.notes || "").trim(),
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
+      createdAt,
+      updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
     };
@@ -635,6 +1243,10 @@
     const currentSnapshot = requestedId ? await ref.get() : null;
     const current = currentSnapshot?.exists ? normalizeReport(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const presentCount = Number(patch?.presentCount);
     const visitorsCount = Number(patch?.visitorsCount);
     const offering = Number(patch?.offering);
@@ -650,8 +1262,8 @@
       visitorsCount: Number.isFinite(visitorsCount) ? visitorsCount : Number(current?.visitorsCount || 0) || 0,
       offering: Number.isFinite(offering) ? offering : Number(current?.offering || 0) || 0,
       notes: String(patch?.notes || current?.notes || "").trim(),
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
+      createdAt,
+      updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
     };
@@ -681,6 +1293,10 @@
     const currentSnapshot = requestedId ? await ref.get() : null;
     const current = currentSnapshot?.exists ? normalizeStudy(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const file = patch?.file || null;
     let storagePath = current?.storagePath || "";
     let downloadUrl = current?.downloadUrl || "";
@@ -707,8 +1323,8 @@
       storagePath,
       downloadUrl,
       fileName,
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
+      createdAt,
+      updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
     };
@@ -751,6 +1367,10 @@
     const currentSnapshot = requestedId ? await ref.get() : null;
     const current = currentSnapshot?.exists ? normalizeVisitor(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const visitCount = Number(patch?.visitCount);
 
     const payload = {
@@ -766,8 +1386,8 @@
       lastVisitAt: String(patch?.lastVisitAt || current?.lastVisitAt || "").trim(),
       visitCount: Number.isFinite(visitCount) ? visitCount : Number(current?.visitCount || 0) || 0,
       notes: String(patch?.notes || current?.notes || "").trim(),
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
+      createdAt,
+      updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
     };
@@ -794,6 +1414,10 @@
     const currentSnapshot = requestedId ? await ref.get() : null;
     const current = currentSnapshot?.exists ? normalizeAlert(currentSnapshot.id, currentSnapshot.data()) : null;
     const now = new Date().toISOString();
+    const createdAt = current?.createdAt || String(patch?.createdAt || now).trim() || now;
+    const updatedAt = current
+      ? now
+      : String(patch?.updatedAt || patch?.createdAt || now).trim() || now;
     const payload = {
       id: ref.id,
       cellId: String(patch?.cellId || current?.cellId || "").trim(),
@@ -805,8 +1429,8 @@
       ownerUid: String(patch?.ownerUid || current?.ownerUid || "").trim(),
       dueAt: String(patch?.dueAt || current?.dueAt || "").trim(),
       notes: String(patch?.notes || current?.notes || "").trim(),
-      createdAt: current?.createdAt || now,
-      updatedAt: now,
+      createdAt,
+      updatedAt,
       createdByUid: current?.createdByUid || String(actorUid || "").trim(),
       updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
     };
@@ -1015,6 +1639,383 @@
       .filter(Boolean);
   }
 
+  async function deleteSnapshotDocs(snapshot) {
+    if (!snapshot || snapshot.empty) {
+      return 0;
+    }
+
+    let batch = api.db.batch();
+    let batchSize = 0;
+    let deleted = 0;
+    const commits = [];
+
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+      batchSize += 1;
+      deleted += 1;
+
+      if (batchSize >= 350) {
+        commits.push(batch.commit());
+        batch = api.db.batch();
+        batchSize = 0;
+      }
+    });
+
+    if (batchSize > 0) {
+      commits.push(batch.commit());
+    }
+
+    await Promise.all(commits);
+    return deleted;
+  }
+
+  async function deleteMember(memberId) {
+    initialize();
+    const normalizedId = String(memberId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Membro invalido para exclusao.");
+    }
+
+    await api.db.collection(COLLECTIONS.members).doc(normalizedId).delete();
+    return true;
+  }
+
+  async function deleteReport(reportId) {
+    initialize();
+    const normalizedId = String(reportId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Relatorio invalido para exclusao.");
+    }
+
+    await api.db.collection(COLLECTIONS.reports).doc(normalizedId).delete();
+    return true;
+  }
+
+  async function deleteVisitor(visitorId) {
+    initialize();
+    const normalizedId = String(visitorId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Visitante invalido para exclusao.");
+    }
+
+    await api.db.collection(COLLECTIONS.visitors).doc(normalizedId).delete();
+    return true;
+  }
+
+  async function deleteAlert(alertId) {
+    initialize();
+    const normalizedId = String(alertId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Alerta invalido para exclusao.");
+    }
+
+    await api.db.collection(COLLECTIONS.alerts).doc(normalizedId).delete();
+    return true;
+  }
+
+  async function deleteStudy(studyId) {
+    initialize();
+    const normalizedId = String(studyId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Estudo invalido para exclusao.");
+    }
+
+    const ref = api.db.collection(COLLECTIONS.studies).doc(normalizedId);
+    const snapshot = await ref.get();
+    const current = snapshot.exists ? normalizeStudy(snapshot.id, snapshot.data()) : null;
+    if (!current) {
+      return false;
+    }
+
+    if (current.storagePath && api.storage) {
+      try {
+        await api.storage.ref(current.storagePath).delete();
+      } catch (_) {}
+    }
+
+    await ref.delete();
+    return true;
+  }
+
+  async function cleanupProfilesForDeletedCell(cellId) {
+    const normalizedCellId = String(cellId || "").trim();
+    if (!normalizedCellId) {
+      return 0;
+    }
+
+    const [primarySnapshot, scopeSnapshot] = await Promise.all([
+      api.db.collection(COLLECTIONS.users).where("primaryCellId", "==", normalizedCellId).get(),
+      api.db.collection(COLLECTIONS.users).where("scopeCellIds", "array-contains", normalizedCellId).get(),
+    ]);
+
+    const patches = new Map();
+    const now = new Date().toISOString();
+
+    primarySnapshot.docs.forEach((doc) => {
+      const data = normalizeProfile(doc.id, doc.data());
+      if (!data) {
+        return;
+      }
+      patches.set(doc.id, {
+        ref: doc.ref,
+        payload: {
+          primaryCellId: "",
+          scopeCellIds: Array.isArray(data.scopeCellIds) ? data.scopeCellIds : [],
+          updatedAt: now,
+        },
+      });
+    });
+
+    scopeSnapshot.docs.forEach((doc) => {
+      const data = normalizeProfile(doc.id, doc.data());
+      if (!data) {
+        return;
+      }
+
+      const existing = patches.get(doc.id);
+      const nextScope = (Array.isArray(data.scopeCellIds) ? data.scopeCellIds : []).filter((entry) => entry !== normalizedCellId);
+      if (existing) {
+        existing.payload.scopeCellIds = nextScope;
+        existing.payload.updatedAt = now;
+      } else {
+        patches.set(doc.id, {
+          ref: doc.ref,
+          payload: {
+            primaryCellId: data.primaryCellId,
+            scopeCellIds: nextScope,
+            updatedAt: now,
+          },
+        });
+      }
+    });
+
+    if (!patches.size) {
+      return 0;
+    }
+
+    let batch = api.db.batch();
+    let batchSize = 0;
+    const commits = [];
+    patches.forEach((entry) => {
+      batch.set(entry.ref, entry.payload, { merge: true });
+      batchSize += 1;
+      if (batchSize >= 300) {
+        commits.push(batch.commit());
+        batch = api.db.batch();
+        batchSize = 0;
+      }
+    });
+
+    if (batchSize > 0) {
+      commits.push(batch.commit());
+    }
+
+    await Promise.all(commits);
+    return patches.size;
+  }
+
+  async function deleteCell(cellId) {
+    initialize();
+    const normalizedId = String(cellId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Celula invalida para exclusao.");
+    }
+
+    const cellRef = api.db.collection(COLLECTIONS.cells).doc(normalizedId);
+    const [memberSnapshot, reportSnapshot, visitorSnapshot, alertSnapshot] = await Promise.all([
+      api.db.collection(COLLECTIONS.members).where("cellId", "==", normalizedId).get(),
+      api.db.collection(COLLECTIONS.reports).where("cellId", "==", normalizedId).get(),
+      api.db.collection(COLLECTIONS.visitors).where("cellId", "==", normalizedId).get(),
+      api.db.collection(COLLECTIONS.alerts).where("cellId", "==", normalizedId).get(),
+    ]);
+
+    await Promise.all([
+      deleteSnapshotDocs(memberSnapshot),
+      deleteSnapshotDocs(reportSnapshot),
+      deleteSnapshotDocs(visitorSnapshot),
+      deleteSnapshotDocs(alertSnapshot),
+      cleanupProfilesForDeletedCell(normalizedId),
+    ]);
+
+    await cellRef.delete();
+    return true;
+  }
+
+  async function upsertImportedStudy(study, actorUid) {
+    initialize();
+    const normalizedStudy = normalizeLegacyStudy(study);
+    if (!normalizedStudy) {
+      return null;
+    }
+
+    const downloadUrl = await getImportedStudyDownloadUrl(normalizedStudy);
+    if (!downloadUrl) {
+      return null;
+    }
+
+    const requestedId = String(normalizedStudy.id || "").trim();
+    const ref = requestedId
+      ? api.db.collection(COLLECTIONS.studies).doc(requestedId)
+      : api.db.collection(COLLECTIONS.studies).doc();
+    const currentSnapshot = requestedId ? await ref.get() : null;
+    const current = currentSnapshot?.exists ? normalizeStudy(currentSnapshot.id, currentSnapshot.data()) : null;
+    const now = new Date().toISOString();
+
+    const payload = {
+      id: ref.id,
+      title: normalizedStudy.title,
+      description: normalizedStudy.description || current?.description || "",
+      audience: normalizedStudy.audience || current?.audience || "all",
+      storagePath: normalizedStudy.storagePath || current?.storagePath || "",
+      downloadUrl,
+      fileName: normalizedStudy.fileName || current?.fileName || `${normalizedStudy.title}.pdf`,
+      createdAt: current?.createdAt || normalizedStudy.createdAt || now,
+      updatedAt: current ? now : normalizedStudy.updatedAt || normalizedStudy.createdAt || now,
+      createdByUid: current?.createdByUid || String(actorUid || "").trim(),
+      updatedByUid: String(actorUid || current?.updatedByUid || "").trim(),
+    };
+
+    await ref.set(payload, { merge: true });
+    return normalizeStudy(ref.id, payload);
+  }
+
+  async function loadLegacySummary() {
+    const bundle = await loadLegacyBundle();
+    const visitorImport = buildLegacyVisitors(bundle);
+    const importableStudies = [];
+    let studiesMissingFile = 0;
+
+    for (const study of bundle.studies) {
+      const downloadUrl = await getImportedStudyDownloadUrl(study);
+      if (downloadUrl) {
+        importableStudies.push(study);
+      } else {
+        studiesMissingFile += 1;
+      }
+    }
+
+    return {
+      cells: bundle.cells.length,
+      members: bundle.cells.reduce((sum, cell) => sum + (Array.isArray(cell.members) ? cell.members.length : 0), 0),
+      reports: bundle.reports.length,
+      visitors: visitorImport.visitors.length,
+      unlinkedVisitors: visitorImport.skippedUnlinked,
+      studies: importableStudies.length,
+      studiesMissingFile,
+    };
+  }
+
+  async function importLegacyData(actorUid) {
+    initialize();
+    if (!api.db) {
+      throw new Error("Firestore indisponivel para importar a V1.");
+    }
+
+    const importedByUid = String(actorUid || api.currentUser?.uid || "").trim();
+    const bundle = await loadLegacyBundle();
+    const profiles = await listProfiles().catch(() => []);
+    const profileIndex = buildProfileNameIndex(profiles);
+    const visitorImport = buildLegacyVisitors(bundle);
+    const summary = {
+      cells: 0,
+      members: 0,
+      reports: 0,
+      visitors: 0,
+      studies: 0,
+      unlinkedVisitors: visitorImport.skippedUnlinked,
+      studiesMissingFile: 0,
+    };
+
+    for (const cell of bundle.cells) {
+      const leaderUid = pickLeaderUid(cell.leader, profileIndex);
+      const notes = [
+        cell.leader ? `Lider legado: ${cell.leader}` : "",
+        "Importado da V1.",
+      ].filter(Boolean).join("\n");
+
+      await saveCell({
+        id: cell.id,
+        customId: cell.id,
+        name: cell.name,
+        leaderUid,
+        coLeaderUids: [],
+        meetingDay: cell.meetingDay,
+        meetingTime: cell.meetingTime,
+        address: cell.address,
+        status: "active",
+        notes,
+        createdAt: cell.createdAt,
+        updatedAt: cell.createdAt,
+      }, importedByUid);
+      summary.cells += 1;
+
+      for (const member of cell.members) {
+        await saveMember({
+          id: buildImportedDocId("legacy-member", [cell.id, member.id || member.name]),
+          cellId: cell.id,
+          name: member.name,
+          phone: member.phone,
+          roleInCell: "member",
+          status: "active",
+          joinedAt: "",
+          notes: "Importado da V1.",
+          createdAt: cell.createdAt,
+          updatedAt: cell.createdAt,
+        }, importedByUid);
+        summary.members += 1;
+      }
+    }
+
+    for (const report of bundle.reports) {
+      await saveReport({
+        id: report.id,
+        cellId: report.cellId,
+        date: report.date,
+        leaders: report.leaders,
+        host: report.host,
+        address: report.address,
+        presentCount: Array.isArray(report.presentMemberIds) ? report.presentMemberIds.length : 0,
+        visitorsCount: Number(report.visitorsCount || report.visitorDetails?.length || 0) || 0,
+        offering: parseLooseNumber(report.offering),
+        notes: buildLegacyReportNotes(report),
+        createdAt: report.createdAt,
+        updatedAt: report.updatedAt || report.createdAt,
+      }, importedByUid);
+      summary.reports += 1;
+    }
+
+    for (const visitor of visitorImport.visitors) {
+      await saveVisitor({
+        id: visitor.id,
+        cellId: visitor.cellId,
+        name: visitor.name,
+        phone: visitor.phone,
+        address: visitor.address,
+        origin: visitor.origin,
+        context: visitor.context,
+        status: visitor.status,
+        firstVisitAt: visitor.firstVisitAt,
+        lastVisitAt: visitor.lastVisitAt,
+        visitCount: visitor.visitCount,
+        notes: visitor.notes,
+        createdAt: visitor.firstVisitAt,
+        updatedAt: visitor.lastVisitAt || visitor.firstVisitAt,
+      }, importedByUid);
+      summary.visitors += 1;
+    }
+
+    for (const study of bundle.studies) {
+      const saved = await upsertImportedStudy(study, importedByUid);
+      if (saved) {
+        summary.studies += 1;
+      } else {
+        summary.studiesMissingFile += 1;
+      }
+    }
+
+    return summary;
+  }
+
   window.renovoPlusFirebase = {
     initialize,
     waitForAuthReady,
@@ -1022,10 +2023,12 @@
     signInWithEmail,
     signUpWithEmail,
     signOut,
+    sendPasswordReset,
     loadUserProfile,
     listProfiles,
     hasAnyProfiles,
     saveUserProfile,
+    provisionManagedAccess,
     claimInitialAdminProfile,
     saveCell,
     saveMember,
@@ -1033,6 +2036,12 @@
     saveStudy,
     saveVisitor,
     saveAlert,
+    deleteCell,
+    deleteMember,
+    deleteReport,
+    deleteStudy,
+    deleteVisitor,
+    deleteAlert,
     listAccessibleCells,
     listAccessibleMembers,
     listAccessibleReports,
@@ -1040,6 +2049,8 @@
     listAccessibleVisitors,
     listAccessibleAlerts,
     listAllCells,
+    loadLegacySummary,
+    importLegacyData,
     get collections() {
       return COLLECTIONS;
     },
