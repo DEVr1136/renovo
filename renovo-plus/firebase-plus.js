@@ -10,6 +10,11 @@
     studies: "renovo_plus_studies",
     visitors: "renovo_plus_visitors",
     alerts: "renovo_plus_alerts",
+    receptionVisitors: "visitors",
+    visitorFollowups: "visitorFollowups",
+    messageTemplates: "messageTemplates",
+    messageQueue: "messageQueue",
+    cellAssignments: "cellAssignments",
   };
 
   const LEGACY = {
@@ -41,6 +46,32 @@
     currentUser: null,
   };
   const DEFAULT_IGREJA_ID = "renovo";
+  const FOLLOWUP_STEPS = [
+    {
+      templateKey: "visit_thanks_d1",
+      label: "D+1 agradecimento",
+      dayOffset: 1,
+      body: "Ola, {{name}}! Que alegria receber voce na Renovo. Obrigado por nos visitar. Conte conosco em oracao e cuidado. Se preferir nao receber mensagens, responda parar.",
+    },
+    {
+      templateKey: "prayer_offer_d4",
+      label: "D+4 pedido de oracao",
+      dayOffset: 4,
+      body: "Ola, {{name}}. Passando com carinho: ha algo pelo qual voce gostaria que a gente orasse nesta semana? Se quiser, responda com a palavra oracao. Para parar, responda parar.",
+    },
+    {
+      templateKey: "next_service_d6",
+      label: "D+6 proximo culto",
+      dayOffset: 6,
+      body: "Oi, {{name}}! Neste fim de semana teremos culto novamente. Sera uma alegria receber voce, sem compromisso. Que Deus abencoe seu dia. Para parar, responda parar.",
+    },
+    {
+      templateKey: "cell_invite_d10",
+      label: "D+10 convite para celula",
+      dayOffset: 10,
+      body: "Ola, {{name}}. Alem dos cultos, a Renovo tambem se reune em celulas durante a semana. Se quiser conhecer uma perto de voce, responda celula. Para parar, responda parar.",
+    },
+  ];
 
   const authListeners = new Set();
   let initialized = false;
@@ -298,6 +329,7 @@
       cellId: String(data.cellId || "").trim(),
       name: String(data.name || "").trim(),
       phone: String(data.phone || "").trim(),
+      churchId: normalizeIgrejaId(data.churchId || data.igrejaId),
       address: String(data.address || "").trim(),
       origin: String(data.origin || "").trim(),
       context: String(data.context || "").trim(),
@@ -334,6 +366,161 @@
       createdByUid: String(data.createdByUid || "").trim(),
       updatedByUid: String(data.updatedByUid || "").trim(),
     };
+  }
+
+  function normalizePhoneDigits(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function normalizeFollowupStatus(value) {
+    const status = String(value || "").trim();
+    if (["new", "in_followup", "wants_prayer", "wants_cell", "assigned_to_cell", "do_not_contact"].includes(status)) {
+      return status;
+    }
+    return "new";
+  }
+
+  function addDaysIso(baseIso, days) {
+    const base = baseIso ? new Date(baseIso) : new Date();
+    if (Number.isNaN(base.getTime())) {
+      base.setTime(Date.now());
+    }
+    base.setDate(base.getDate() + Number(days || 0));
+    base.setHours(10, 0, 0, 0);
+    return base.toISOString();
+  }
+
+  function getTemplateStep(templateKey) {
+    return FOLLOWUP_STEPS.find((step) => step.templateKey === templateKey) || null;
+  }
+
+  function normalizeQueueMessage(docId, data) {
+    if (!docId || !data || typeof data !== "object") {
+      return null;
+    }
+
+    return {
+      id: String(data.id || docId).trim(),
+      visitorId: String(data.visitorId || "").trim(),
+      phone: String(data.phone || "").trim(),
+      phoneDigits: normalizePhoneDigits(data.phoneDigits || data.phone),
+      templateKey: String(data.templateKey || "").trim(),
+      scheduledAt: String(data.scheduledAt || "").trim(),
+      status: String(data.status || "pending").trim() || "pending",
+      attempts: Number(data.attempts || 0) || 0,
+      lastError: String(data.lastError || "").trim(),
+      churchId: normalizeIgrejaId(data.churchId),
+      createdAt: String(data.createdAt || "").trim(),
+      updatedAt: String(data.updatedAt || "").trim(),
+      sentAt: String(data.sentAt || "").trim(),
+    };
+  }
+
+  function normalizeReceptionVisitor(docId, data) {
+    if (!docId || !data || typeof data !== "object") {
+      return null;
+    }
+
+    const name = String(data.name || data.nome || "").trim();
+    if (!name) {
+      return null;
+    }
+
+    const phone = String(data.phone || data.telefone || "").trim();
+    const createdAt = String(data.createdAt || data.criadoEm || "").trim();
+    const prayerRequest = String(data.prayerRequest || data.observacoes || "").trim();
+    const firstVisit = data.firstVisit === false ? false : true;
+    const wantsContact = data.wantsContact === false ? false : true;
+
+    return {
+      id: String(data.id || docId).trim(),
+      name,
+      nome: name,
+      phone,
+      telefone: phone,
+      phoneDigits: normalizePhoneDigits(data.phoneDigits || phone),
+      neighborhood: String(data.neighborhood || data.bairro || data.endereco || "").trim(),
+      firstVisit,
+      wantsContact,
+      prayerRequest,
+      observacoes: prayerRequest,
+      followupStatus: normalizeFollowupStatus(data.followupStatus),
+      followupPaused: data.followupPaused === true,
+      assignedCellId: String(data.assignedCellId || "").trim(),
+      assignedLeaderUid: String(data.assignedLeaderUid || "").trim(),
+      assignedAt: String(data.assignedAt || "").trim(),
+      createdAt,
+      criadoEm: createdAt,
+      updatedAt: String(data.updatedAt || "").trim(),
+      createdByUid: String(data.createdByUid || data.criadoPor || "").trim(),
+      criadoPor: String(data.createdByUid || data.criadoPor || "").trim(),
+      updatedByUid: String(data.updatedByUid || "").trim(),
+      churchId: normalizeIgrejaId(data.churchId || data.igrejaId),
+      nextMessage: data.nextMessage || null,
+    };
+  }
+
+  function buildDefaultTemplatePayload(churchId, step, now) {
+    return {
+      id: `${churchId}_${step.templateKey}`,
+      churchId,
+      templateKey: step.templateKey,
+      label: step.label,
+      body: step.body,
+      dayOffset: step.dayOffset,
+      enabled: true,
+      whatsappTemplateName: "",
+      language: "pt_BR",
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function buildInitialFollowupPayload(visitor, actorUid, now) {
+    const nextStep = FOLLOWUP_STEPS[0];
+    const active = visitor.wantsContact !== false && Boolean(visitor.phoneDigits);
+    return {
+      id: visitor.id,
+      visitorId: visitor.id,
+      churchId: visitor.churchId,
+      status: active ? "active" : "not_started",
+      startedAt: active ? now : "",
+      pausedAt: "",
+      stoppedAt: active ? "" : now,
+      completedAt: "",
+      nextTemplateKey: active ? nextStep.templateKey : "",
+      nextScheduledAt: active ? addDaysIso(visitor.createdAt || now, nextStep.dayOffset) : "",
+      lastMessageAt: "",
+      lastInboundMessageAt: "",
+      lastInboundMessage: "",
+      createdByUid: String(actorUid || "").trim(),
+      updatedByUid: String(actorUid || "").trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function buildInitialQueuePayloads(visitor, now) {
+    if (visitor.wantsContact === false || !visitor.phoneDigits) {
+      return [];
+    }
+
+    return FOLLOWUP_STEPS.map((step) => ({
+      id: `${visitor.id}_${step.templateKey}`,
+      visitorId: visitor.id,
+      phone: visitor.phone,
+      phoneDigits: visitor.phoneDigits,
+      templateKey: step.templateKey,
+      scheduledAt: addDaysIso(visitor.createdAt || now, step.dayOffset),
+      status: "pending",
+      attempts: 0,
+      lastError: "",
+      churchId: visitor.churchId,
+      createdAt: now,
+      updatedAt: now,
+      sentAt: "",
+      providerMessageId: "",
+    }));
   }
 
   function normalizeBannerHome(data) {
@@ -863,7 +1050,7 @@
 
   async function signInWithEmail(email, password) {
     initialize();
-    return api.auth.signInWithEmailAndPassword(String(email || "").trim(), String(password || ""));
+    return api.auth.signInWithEmailAndPassword(String(email || "").trim().toLowerCase(), String(password || ""));
   }
 
   async function signUpWithEmail(name, email, password) {
@@ -2176,30 +2363,315 @@
   async function saveVisitanteCulto(data, actorUid) {
     initialize();
     if (!api.db) throw new Error("Firestore indisponivel.");
-    const col = "visitantesCulto";
-    const ref = data.id ? api.db.collection(col).doc(data.id) : api.db.collection(col).doc();
+
+    const requestedId = String(data.id || "").trim();
+    const ref = requestedId
+      ? api.db.collection(COLLECTIONS.receptionVisitors).doc(requestedId)
+      : api.db.collection(COLLECTIONS.receptionVisitors).doc();
+    const legacyRef = api.db.collection("visitantesCulto").doc(ref.id);
     const now = new Date().toISOString();
+    const phone = String(data.phone || data.telefone || "").trim();
+    const phoneDigits = normalizePhoneDigits(phone);
+    const wantsContact = data.wantsContact === false ? false : true;
+    const followupStatus = wantsContact && phoneDigits ? "new" : "do_not_contact";
     const doc = {
       id: ref.id,
-      nome: String(data.nome || "").trim(),
-      telefone: String(data.telefone || "").trim(),
-      observacoes: String(data.observacoes || "").trim(),
-      criadoEm: data.criadoEm || now,
-      criadoPor: String(actorUid || "").trim(),
-      igrejaId: String(data.igrejaId || "").trim(),
+      name: String(data.name || data.nome || "").trim(),
+      phone,
+      phoneDigits,
+      neighborhood: String(data.neighborhood || data.bairro || "").trim(),
+      firstVisit: data.firstVisit === false ? false : true,
+      wantsContact,
+      prayerRequest: String(data.prayerRequest || data.observacoes || "").trim(),
+      followupStatus,
+      followupPaused: false,
+      assignedCellId: "",
+      assignedLeaderUid: "",
+      assignedAt: "",
+      createdAt: String(data.createdAt || data.criadoEm || now).trim() || now,
+      updatedAt: now,
+      createdByUid: String(actorUid || "").trim(),
+      updatedByUid: String(actorUid || "").trim(),
+      churchId: normalizeIgrejaId(data.churchId || data.igrejaId),
     };
-    await ref.set(doc);
-    return doc;
+
+    if (!doc.name) {
+      throw new Error("Visitante precisa de nome.");
+    }
+
+    const visitor = normalizeReceptionVisitor(ref.id, doc);
+    const batch = api.db.batch();
+    batch.set(ref, doc, { merge: true });
+    batch.set(legacyRef, {
+      id: ref.id,
+      nome: doc.name,
+      telefone: doc.phone,
+      observacoes: doc.prayerRequest,
+      criadoEm: doc.createdAt,
+      criadoPor: doc.createdByUid,
+      igrejaId: doc.churchId,
+    }, { merge: true });
+
+    const followup = buildInitialFollowupPayload(visitor, actorUid, now);
+    batch.set(api.db.collection(COLLECTIONS.visitorFollowups).doc(ref.id), followup, { merge: true });
+
+    buildInitialQueuePayloads(visitor, now).forEach((queueItem) => {
+      batch.set(api.db.collection(COLLECTIONS.messageQueue).doc(queueItem.id), queueItem, { merge: true });
+    });
+
+    await batch.commit();
+    return normalizeReceptionVisitor(ref.id, doc);
   }
 
-  async function listVisitantesCulto() {
+  async function listVisitantesCulto(churchId) {
     initialize();
     if (!api.db) throw new Error("Firestore indisponivel.");
-    const snap = await api.db.collection("visitantesCulto")
-      .orderBy("criadoEm", "desc")
-      .limit(500)
+
+    const normalizedChurchId = normalizeIgrejaId(churchId);
+    const [visitorSnap, legacySnap, queueSnap] = await Promise.all([
+      api.db.collection(COLLECTIONS.receptionVisitors)
+        .where("churchId", "==", normalizedChurchId)
+        .limit(500)
+        .get()
+        .catch(() => ({ docs: [] })),
+      api.db.collection("visitantesCulto")
+        .where("igrejaId", "==", normalizedChurchId)
+        .limit(500)
+        .get()
+        .catch(() => ({ docs: [] })),
+      api.db.collection(COLLECTIONS.messageQueue)
+        .where("churchId", "==", normalizedChurchId)
+        .limit(1000)
+        .get()
+        .catch(() => ({ docs: [] })),
+    ]);
+
+    const nextByVisitor = new Map();
+    queueSnap.docs
+      .map((doc) => normalizeQueueMessage(doc.id, doc.data()))
+      .filter(Boolean)
+      .filter((item) => item.status === "pending")
+      .sort((left, right) => String(left.scheduledAt || "").localeCompare(String(right.scheduledAt || "")))
+      .forEach((item) => {
+        if (!nextByVisitor.has(item.visitorId)) {
+          const step = getTemplateStep(item.templateKey);
+          nextByVisitor.set(item.visitorId, {
+            ...item,
+            label: step?.label || item.templateKey,
+          });
+        }
+      });
+
+    const visitors = new Map();
+    visitorSnap.docs.forEach((doc) => {
+      const visitor = normalizeReceptionVisitor(doc.id, doc.data());
+      if (visitor) {
+        visitor.nextMessage = nextByVisitor.get(visitor.id) || null;
+        visitors.set(visitor.id, visitor);
+      }
+    });
+
+    legacySnap.docs.forEach((doc) => {
+      if (visitors.has(doc.id)) {
+        return;
+      }
+      const visitor = normalizeReceptionVisitor(doc.id, doc.data());
+      if (!visitor || (visitor.churchId !== normalizedChurchId && visitor.churchId !== DEFAULT_IGREJA_ID)) {
+        return;
+      }
+      visitor.legacyOnly = true;
+      visitor.nextMessage = nextByVisitor.get(visitor.id) || null;
+      visitors.set(visitor.id, visitor);
+    });
+
+    return Array.from(visitors.values())
+      .sort((a, b) => String(b.createdAt || b.criadoEm || "").localeCompare(String(a.createdAt || a.criadoEm || "")));
+  }
+
+  async function listCellsForReception(churchId) {
+    initialize();
+    if (!api.db) throw new Error("Firestore indisponivel.");
+
+    const normalizedChurchId = normalizeIgrejaId(churchId);
+    const snapshot = await api.db.collection(COLLECTIONS.cells).limit(300).get();
+    return snapshot.docs
+      .map((doc) => normalizeCell(doc.id, doc.data()))
+      .filter(Boolean)
+      .filter((cell) => {
+        const cellChurchId = normalizeIgrejaId(cell.churchId || cell.igrejaId || normalizedChurchId);
+        return cellChurchId === normalizedChurchId;
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR", { sensitivity: "base" }));
+  }
+
+  async function cancelPendingMessagesForVisitor(visitorId, batch, now, reason) {
+    const queueSnap = await api.db.collection(COLLECTIONS.messageQueue)
+      .where("visitorId", "==", visitorId)
+      .limit(50)
       .get();
-    return snap.docs.map((d) => d.data());
+    queueSnap.docs.forEach((doc) => {
+      const item = normalizeQueueMessage(doc.id, doc.data());
+      if (!item || item.status !== "pending") {
+        return;
+      }
+      batch.update(doc.ref, {
+        status: "cancelled",
+        lastError: reason || "",
+        updatedAt: now,
+      });
+    });
+  }
+
+  async function updateReceptionVisitorStatus(visitorId, patch, actorUid) {
+    initialize();
+    if (!api.db) throw new Error("Firestore indisponivel.");
+
+    const normalizedId = String(visitorId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Visitante invalido.");
+    }
+
+    const now = new Date().toISOString();
+    const visitorRef = api.db.collection(COLLECTIONS.receptionVisitors).doc(normalizedId);
+    const snapshot = await visitorRef.get();
+    if (!snapshot.exists) {
+      throw new Error("Visitante nao encontrado.");
+    }
+
+    const current = normalizeReceptionVisitor(snapshot.id, snapshot.data());
+    const status = normalizeFollowupStatus(patch.followupStatus || current.followupStatus);
+    const payload = {
+      followupStatus: status,
+      wantsContact: patch.wantsContact === undefined ? current.wantsContact : patch.wantsContact === true,
+      followupPaused: patch.followupPaused === undefined ? current.followupPaused : patch.followupPaused === true,
+      updatedAt: now,
+      updatedByUid: String(actorUid || "").trim(),
+    };
+    const batch = api.db.batch();
+    batch.update(visitorRef, payload);
+    batch.set(api.db.collection(COLLECTIONS.visitorFollowups).doc(normalizedId), {
+      id: normalizedId,
+      visitorId: normalizedId,
+      churchId: current.churchId,
+      status: status === "do_not_contact" ? "stopped" : (payload.followupPaused ? "paused" : "active"),
+      pausedAt: payload.followupPaused ? now : "",
+      stoppedAt: status === "do_not_contact" ? now : "",
+      updatedAt: now,
+      updatedByUid: String(actorUid || "").trim(),
+    }, { merge: true });
+
+    if (status === "do_not_contact" || payload.followupPaused || payload.wantsContact === false) {
+      await cancelPendingMessagesForVisitor(normalizedId, batch, now, "Cancelado pela Recepcao.");
+    }
+
+    await batch.commit();
+    return true;
+  }
+
+  async function assignReceptionVisitorToCell(visitorId, options, actorUid) {
+    initialize();
+    if (!api.db) throw new Error("Firestore indisponivel.");
+
+    const normalizedId = String(visitorId || "").trim();
+    if (!normalizedId) {
+      throw new Error("Visitante invalido.");
+    }
+
+    const visitorRef = api.db.collection(COLLECTIONS.receptionVisitors).doc(normalizedId);
+    const visitorSnap = await visitorRef.get();
+    const visitor = visitorSnap.exists ? normalizeReceptionVisitor(visitorSnap.id, visitorSnap.data()) : null;
+    if (!visitor) {
+      throw new Error("Visitante nao encontrado.");
+    }
+
+    const cells = await listCellsForReception(visitor.churchId);
+    const requestedCellId = String(options?.cellId || "").trim();
+    const neighborhoodKey = normalizeLookup(visitor.neighborhood);
+    let targetCell = requestedCellId ? cells.find((cell) => cell.id === requestedCellId) : null;
+    if (!targetCell && neighborhoodKey) {
+      targetCell = cells.find((cell) => {
+        const cellAddress = normalizeLookup(cell.address || cell.name);
+        return cellAddress.includes(neighborhoodKey) || neighborhoodKey.includes(cellAddress);
+      });
+    }
+    if (!targetCell) {
+      targetCell = cells.find((cell) => cell.status !== "inactive") || cells[0] || null;
+    }
+    if (!targetCell) {
+      throw new Error("Nenhuma celula disponivel para encaminhar.");
+    }
+
+    const now = new Date().toISOString();
+    const leaderName = getLeaderNameFromCell(targetCell);
+    const assignmentId = `${visitor.id}_${targetCell.id}`;
+    const assignment = {
+      id: assignmentId,
+      visitorId: visitor.id,
+      visitorName: visitor.name,
+      visitorPhone: visitor.phone,
+      cellId: targetCell.id,
+      cellName: targetCell.name,
+      leaderUid: String(targetCell.leaderUid || "").trim(),
+      leaderName,
+      churchId: visitor.churchId,
+      assignedAt: now,
+      assignedByUid: String(actorUid || "").trim(),
+      status: "active",
+      notes: visitor.prayerRequest ? `Pedido de oracao: ${visitor.prayerRequest}` : "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    const cellVisitorId = `recepcao-${visitor.id}`;
+    const cellVisitor = {
+      id: cellVisitorId,
+      cellId: targetCell.id,
+      name: visitor.name,
+      phone: visitor.phone,
+      churchId: visitor.churchId,
+      address: visitor.neighborhood,
+      origin: "Recepcao",
+      context: visitor.prayerRequest,
+      status: visitor.firstVisit ? "new" : "returning",
+      firstVisitAt: String(visitor.createdAt || now).slice(0, 10),
+      lastVisitAt: String(visitor.createdAt || now).slice(0, 10),
+      visitCount: 1,
+      notes: "Encaminhado pela Recepcao.",
+      createdAt: now,
+      updatedAt: now,
+      createdByUid: String(actorUid || "").trim(),
+      updatedByUid: String(actorUid || "").trim(),
+    };
+
+    const batch = api.db.batch();
+    batch.set(api.db.collection(COLLECTIONS.cellAssignments).doc(assignmentId), assignment, { merge: true });
+    batch.set(api.db.collection(COLLECTIONS.visitors).doc(cellVisitorId), cellVisitor, { merge: true });
+    batch.update(visitorRef, {
+      followupStatus: "assigned_to_cell",
+      assignedCellId: targetCell.id,
+      assignedLeaderUid: assignment.leaderUid,
+      assignedAt: now,
+      followupPaused: true,
+      updatedAt: now,
+      updatedByUid: String(actorUid || "").trim(),
+    });
+    batch.set(api.db.collection(COLLECTIONS.visitorFollowups).doc(visitor.id), {
+      id: visitor.id,
+      visitorId: visitor.id,
+      churchId: visitor.churchId,
+      status: "completed",
+      completedAt: now,
+      updatedAt: now,
+      updatedByUid: String(actorUid || "").trim(),
+    }, { merge: true });
+    await cancelPendingMessagesForVisitor(visitor.id, batch, now, "Visitante encaminhado para celula.");
+    await batch.commit();
+    return assignment;
+  }
+
+  function getLeaderNameFromCell(cell) {
+    const notes = String(cell?.notes || "");
+    const match = notes.match(/^Lider:\s*(.+?)(?:\n|$)/im);
+    return match ? match[1].trim() : "";
   }
 
   window.renovoPlusFirebase = {
@@ -2244,6 +2716,9 @@
     listArenaKidsCadastros,
     saveVisitanteCulto,
     listVisitantesCulto,
+    listCellsForReception,
+    updateReceptionVisitorStatus,
+    assignReceptionVisitorToCell,
     get collections() {
       return COLLECTIONS;
     },
