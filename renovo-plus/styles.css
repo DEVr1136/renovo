@@ -324,6 +324,44 @@ button.home-banner-card {
   line-height: 1.5;
 }
 
+.banner-text-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.banner-text-row p {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-text-row--empty {
+  justify-content: flex-end;
+  padding: 0.4rem 0.5rem 0.4rem 0;
+}
+
+.banner-share-btn {
+  flex-shrink: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: 0.4rem 0.5rem 0.4rem 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.06);
+  cursor: pointer;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.banner-share-btn:active {
+  background: rgba(0,0,0,0.14);
+}
+
 .home-card-celulas {
   background: linear-gradient(155deg, rgba(255, 251, 249, 0.95), rgba(242, 228, 226, 0.92));
 }
@@ -3050,6 +3088,52 @@ button:active {
   background: var(--surface);
   color: var(--ink);
   width: 100%;
+}
+
+.env-check-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+}
+
+.env-check-row label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+
+.env-check-row input {
+  width: auto;
+}
+
+.recepcao-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.recepcao-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.recepcao-cell-select {
+  min-width: min(100%, 180px);
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  font: inherit;
+  font-size: 0.82rem;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .env-form input:focus,

@@ -12,6 +12,7 @@
     profiles: [],  // only loaded for admin/pastor
     arenaKidsCadastros: [],
     visitantesCulto: [],
+    receptionCells: [],
     bannerHome: null,
   };
 
@@ -119,6 +120,13 @@
     const parts = String(iso).split("-");
     if (parts.length !== 3) return iso;
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+
+  function fmtDateTime(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return String(iso);
+    return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   }
 
   function todayISO() {
@@ -232,7 +240,7 @@
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const email = loginForm.elements.email.value.trim();
+        const email = loginForm.elements.email.value.trim().toLowerCase();
         const password = loginForm.elements.password.value;
         const btn = loginForm.querySelector('[type="submit"]');
         showFeedback("auth-feedback", "");
@@ -269,16 +277,24 @@
   }
 
   function translateAuthError(err) {
-    const code = String(err?.code || "");
-    if (code.includes("user-not-found") || code.includes("wrong-password") || code.includes("invalid-credential"))
-      return "E-mail ou senha incorretos.";
-    if (code.includes("too-many-requests")) return "Muitas tentativas. Aguarde alguns minutos.";
-    if (code.includes("network-request-failed")) return "Sem conexão. Verifique sua internet.";
-    if (code.includes("invalid-email")) return "E-mail inválido.";
-    if (code.includes("email-already-in-use") || code.includes("EMAIL_EXISTS")) return "Este e-mail já está cadastrado no sistema.";
-    if (code.includes("weak-password")) return "Senha fraca. Use pelo menos 6 caracteres.";
-    if (code.includes("operation-not-allowed")) return "Login por e-mail/senha não está habilitado no Firebase.";
-    return err?.message || "Erro ao autenticar.";
+    const code = String(err?.code || "").trim();
+    const normalizedCode = code.replace(/^auth\//, "");
+    const messages = {
+      "invalid-login-credentials": "E-mail ou senha incorretos",
+      "invalid-credential": "E-mail ou senha incorretos",
+      "user-not-found": "E-mail ou senha incorretos",
+      "wrong-password": "E-mail ou senha incorretos",
+      "invalid-email": "E-mail inválido",
+      "user-disabled": "Esta conta foi desativada",
+      "too-many-requests": "Muitas tentativas. Tente novamente mais tarde",
+      "network-request-failed": "Sem conexão. Verifique sua internet",
+      "email-already-in-use": "Este e-mail já está cadastrado no sistema",
+      EMAIL_EXISTS: "Este e-mail já está cadastrado no sistema",
+      "weak-password": "Senha fraca. Use pelo menos 6 caracteres",
+      "operation-not-allowed": "Login por e-mail/senha não está habilitado no Firebase",
+    };
+
+    return messages[code] || messages[normalizedCode] || "Não foi possível autenticar. Tente novamente.";
   }
 
   // ─── HOME SCREEN ──────────────────────────────────────────────────────────
@@ -288,7 +304,23 @@
     $("go-to-arena-kids")?.addEventListener("click", enterArenaKidsScreen);
     $("go-to-recepcao")?.addEventListener("click", enterRecepcaoScreen);
     $("go-to-admin")?.addEventListener("click", enterAdminScreen);
-    $("home-banner-wrap")?.addEventListener("click", (event) => {
+    $("home-banner-wrap")?.addEventListener("click", async (event) => {
+      if (event.target.closest("[data-banner-share]")) {
+        event.stopPropagation();
+        const btn = event.target.closest("[data-banner-share]");
+        const url = btn.dataset.bannerShareUrl || "";
+        const title = btn.dataset.bannerShareTitle || "Igreja Renovo";
+        try {
+          if (navigator.share) {
+            await navigator.share({ title, url: url || location.href });
+          } else if (url && navigator.clipboard) {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = "✅";
+            setTimeout(() => { btn.textContent = "⬆️"; }, 2000);
+          }
+        } catch (_) {}
+        return;
+      }
       const link = event.target.closest("[data-banner-link]")?.dataset.bannerLink;
       if (link) window.open(link, "_blank", "noopener");
     });
@@ -338,10 +370,13 @@
       return;
     }
     const image = `<img src="${escHtml(banner.imageUrl)}" alt="" loading="lazy" />`;
-    const text = banner.text ? `<p>${escHtml(banner.text)}</p>` : "";
+    const shareBtn = `<button type="button" class="banner-share-btn" data-banner-share data-banner-share-url="${escHtml(banner.link || "")}" data-banner-share-title="${escHtml(banner.text || "Igreja Renovo")}">⬆️</button>`;
+    const textRow = banner.text
+      ? `<div class="banner-text-row"><p>${escHtml(banner.text)}</p>${shareBtn}</div>`
+      : `<div class="banner-text-row banner-text-row--empty">${shareBtn}</div>`;
     wrap.innerHTML = banner.link
-      ? `<button type="button" class="home-banner-card" data-banner-link="${escHtml(banner.link)}">${image}${text}</button>`
-      : `<div class="home-banner-card">${image}${text}</div>`;
+      ? `<button type="button" class="home-banner-card" data-banner-link="${escHtml(banner.link)}">${image}${textRow}</button>`
+      : `<div class="home-banner-card">${image}${textRow}</div>`;
     wrap.hidden = false;
   }
 
@@ -510,7 +545,7 @@
   async function handleLogout() {
     try { await fb().signOut(); } catch (_) {}
     session = null;
-    state = { cells: [], reports: [], studies: [], visitors: [], profiles: [], arenaKidsCadastros: [], visitantesCulto: [], bannerHome: null };
+    state = { cells: [], reports: [], studies: [], visitors: [], profiles: [], arenaKidsCadastros: [], visitantesCulto: [], receptionCells: [], bannerHome: null };
   }
 
   function setLoadingText(msg) {
@@ -2041,6 +2076,7 @@
       $("recepcao-list-section").hidden = false;
     });
     $("recepcao-search")?.addEventListener("input", renderRecepcaoList);
+    $("recepcao-list")?.addEventListener("click", handleRecepcaoListAction);
     $("recepcao-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       await handleRecepcaoSubmit(e.target);
@@ -2052,6 +2088,10 @@
     showScreen("recepcao-screen");
     $("recepcao-form-section").hidden = true;
     $("recepcao-list-section").hidden = false;
+    await loadRecepcaoData();
+  }
+
+  async function loadRecepcaoData() {
     const loadingEl = $("recepcao-loading");
     const emptyEl = $("recepcao-empty");
     const listEl = $("recepcao-list");
@@ -2059,13 +2099,34 @@
     if (emptyEl) emptyEl.hidden = true;
     if (listEl) listEl.innerHTML = "";
     try {
-      state.visitantesCulto = await fb().listVisitantesCulto();
+      const [visitantes, cells] = await Promise.all([
+        fb().listVisitantesCulto(currentIgrejaId()),
+        fb().listCellsForReception(currentIgrejaId()).catch(() => []),
+      ]);
+      state.visitantesCulto = visitantes;
+      state.receptionCells = cells;
     } catch (err) {
       console.error("[Renovo+] recepcao load:", err);
       state.visitantesCulto = [];
+      state.receptionCells = [];
     }
     if (loadingEl) loadingEl.hidden = true;
     renderRecepcaoList();
+  }
+
+  function getRecepcaoStatusMeta(status, paused) {
+    if (paused && status !== "assigned_to_cell" && status !== "do_not_contact") {
+      return { label: "Mensagens pausadas", className: "badge-neutral" };
+    }
+    const map = {
+      new: { label: "Novo", className: "badge-neutral" },
+      in_followup: { label: "Em acompanhamento", className: "badge-ok" },
+      wants_prayer: { label: "Quer oracao", className: "badge-warn" },
+      wants_cell: { label: "Quer celula", className: "badge-warn" },
+      assigned_to_cell: { label: "Encaminhado", className: "badge-ok" },
+      do_not_contact: { label: "Nao contactar", className: "badge-danger" },
+    };
+    return map[status] || map.new;
   }
 
   function renderRecepcaoList() {
@@ -2073,8 +2134,10 @@
     const list = state.visitantesCulto.filter((item) => {
       if (!search) return true;
       return (
-        String(item.nome || "").toLowerCase().includes(search) ||
-        String(item.telefone || "").includes(search)
+        String(item.name || item.nome || "").toLowerCase().includes(search) ||
+        String(item.phone || item.telefone || "").includes(search) ||
+        String(item.neighborhood || "").toLowerCase().includes(search) ||
+        String(item.followupStatus || "").toLowerCase().includes(search)
       );
     });
     const container = $("recepcao-list");
@@ -2087,28 +2150,104 @@
     }
     if (emptyEl) emptyEl.hidden = true;
     container.innerHTML = list.map((item) => {
-      const phone = String(item.telefone || "").replace(/\D/g, "");
+      const phone = String(item.phone || item.telefone || "").replace(/\D/g, "");
+      const waPhone = phone.length <= 11 ? `55${phone}` : phone;
       const waLink = phone
-        ? `<a href="https://wa.me/55${phone}" target="_blank" rel="noopener" class="whatsapp-btn">WhatsApp</a>`
+        ? `<a href="https://wa.me/${waPhone}" target="_blank" rel="noopener" class="whatsapp-btn">WhatsApp</a>`
         : "";
       const isNew = item.id === lastCreatedRecepcaoId;
+      const status = String(item.followupStatus || "new");
+      const legacyOnly = item.legacyOnly === true;
+      const statusMeta = getRecepcaoStatusMeta(status, item.followupPaused);
+      const nextMessage = item.nextMessage
+        ? `${item.nextMessage.label || item.nextMessage.templateKey} em ${fmtDateTime(item.nextMessage.scheduledAt)}`
+        : (legacyOnly || item.followupPaused || status === "do_not_contact" || status === "assigned_to_cell" ? "Sem mensagem pendente" : "Aguardando fila");
+      const cellOptions = state.receptionCells
+        .map((cell) => `<option value="${escHtml(cell.id)}">${escHtml(cell.name)}</option>`)
+        .join("");
+      const assignDisabled = legacyOnly || !state.receptionCells.length || status === "assigned_to_cell" || status === "do_not_contact";
+      const canPause = !legacyOnly && status !== "assigned_to_cell" && status !== "do_not_contact" && !item.followupPaused;
       return `<div class="env-list-item${isNew ? " env-item-new" : ""}" data-id="${escHtml(item.id)}">
         <div class="env-item-main">
-          <strong class="env-item-name">${escHtml(item.nome)}</strong>
-          ${item.telefone ? `<small class="env-item-sub">${escHtml(item.telefone)}</small>` : ""}
+          <div class="recepcao-card-head">
+            <strong class="env-item-name">${escHtml(item.name || item.nome)}</strong>
+            <span class="tracking-badge ${statusMeta.className}">${escHtml(statusMeta.label)}</span>
+          </div>
+          <small class="env-item-sub">${[
+            item.phone || item.telefone,
+            item.neighborhood,
+            item.firstVisit ? "Primeira visita" : "Retorno",
+          ].filter(Boolean).map(escHtml).join(" · ")}</small>
+          ${item.prayerRequest ? `<small class="env-item-detail">${escHtml(item.prayerRequest)}</small>` : ""}
+          ${legacyOnly ? `<small class="env-item-detail">Cadastro anterior</small>` : ""}
+          <small class="env-item-detail">Proxima mensagem: ${escHtml(nextMessage)}</small>
+          ${status === "assigned_to_cell" && item.assignedCellId ? `<small class="env-item-detail">Celula: ${escHtml(getReceptionCellName(item.assignedCellId))}</small>` : ""}
+          <div class="recepcao-actions">
+            <button type="button" class="ghost-btn compact-btn" data-recepcao-action="pause" ${canPause ? "" : "disabled"}>Pausar mensagens</button>
+            <select class="recepcao-cell-select" data-recepcao-cell-select ${assignDisabled ? "disabled" : ""}>
+              <option value="">Celula automatica</option>
+              ${cellOptions}
+            </select>
+            <button type="button" class="ghost-btn compact-btn" data-recepcao-action="assign" ${assignDisabled ? "disabled" : ""}>Encaminhar para celula</button>
+            <button type="button" class="ghost-btn compact-btn danger-btn" data-recepcao-action="no-contact" ${legacyOnly || status === "do_not_contact" ? "disabled" : ""}>Nao contactar</button>
+          </div>
         </div>
         ${waLink ? `<div class="env-item-actions">${waLink}</div>` : ""}
       </div>`;
     }).join("");
   }
 
+  function getReceptionCellName(cellId) {
+    const cell = state.receptionCells.find((item) => item.id === cellId) || state.cells.find((item) => item.id === cellId);
+    return cell?.name || cellId || "";
+  }
+
+  async function handleRecepcaoListAction(event) {
+    const btn = event.target.closest("[data-recepcao-action]");
+    if (!btn) return;
+    const card = btn.closest("[data-id]");
+    const visitorId = card?.dataset?.id || "";
+    if (!visitorId) return;
+
+    const action = btn.dataset.recepcaoAction;
+    const originalLabel = btn.textContent;
+    setButtonLoading(btn, true, "Salvando...");
+    try {
+      if (action === "pause") {
+        await fb().updateReceptionVisitorStatus(visitorId, { followupPaused: true, wantsContact: false }, session.uid);
+        showEnvFeedback("Mensagens pausadas");
+      } else if (action === "no-contact") {
+        if (!confirm("Marcar este visitante como nao contactar?")) return;
+        await fb().updateReceptionVisitorStatus(visitorId, { followupStatus: "do_not_contact", followupPaused: true, wantsContact: false }, session.uid);
+        showEnvFeedback("Visitante marcado como nao contactar");
+      } else if (action === "assign") {
+        const select = card.querySelector("[data-recepcao-cell-select]");
+        await fb().assignReceptionVisitorToCell(visitorId, { cellId: select?.value || "", churchId: currentIgrejaId() }, session.uid);
+        showEnvFeedback("Visitante encaminhado para celula");
+      }
+      await loadRecepcaoData();
+    } catch (err) {
+      alert("Erro: " + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
   async function handleRecepcaoSubmit(form) {
     const nome = form.elements.nome.value.trim();
+    const telefone = form.elements.telefone.value.trim();
+    const wantsContact = form.elements.wantsContact ? form.elements.wantsContact.checked : true;
     const errEl = $("recepcao-form-error");
 
     if (!nome) {
       if (errEl) { errEl.textContent = "Informe o nome do visitante."; errEl.hidden = false; }
       form.elements.nome.focus();
+      return;
+    }
+    if (wantsContact && !telefone) {
+      if (errEl) { errEl.textContent = "Informe o telefone ou desmarque o contato por WhatsApp."; errEl.hidden = false; }
+      form.elements.telefone.focus();
       return;
     }
 
@@ -2119,13 +2258,17 @@
     try {
       const saved = await fb().saveVisitanteCulto({
         nome,
-        telefone: form.elements.telefone.value.trim(),
-        observacoes: form.elements.observacoes.value.trim(),
-        igrejaId: "",
+        telefone,
+        neighborhood: form.elements.neighborhood.value.trim(),
+        firstVisit: form.elements.firstVisit ? form.elements.firstVisit.checked : true,
+        wantsContact,
+        prayerRequest: form.elements.prayerRequest.value.trim(),
+        observacoes: form.elements.prayerRequest.value.trim(),
+        churchId: currentIgrejaId(),
       }, session.uid);
 
       lastCreatedRecepcaoId = saved.id;
-      state.visitantesCulto = await fb().listVisitantesCulto();
+      await loadRecepcaoData();
 
       form.reset();
       $("recepcao-form-section").hidden = true;
@@ -2621,7 +2764,7 @@
       if (!user) {
         session = null;
         authHandled = false;
-        state = { cells: [], reports: [], studies: [], visitors: [], profiles: [], arenaKidsCadastros: [], visitantesCulto: [], bannerHome: null };
+        state = { cells: [], reports: [], studies: [], visitors: [], profiles: [], arenaKidsCadastros: [], visitantesCulto: [], receptionCells: [], bannerHome: null };
         showScreen("auth-screen");
       } else if (newUid !== currentUid) {
         // New user signed in (or first load with existing session)
