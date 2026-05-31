@@ -5,25 +5,24 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function currentProfileExists() {
-      return signedIn()
-        && firestore.exists(/databases/(default)/documents/renovo_plus_users/$(request.auth.uid));
-    }
-
-    function currentProfile() {
+    function profile() {
       return firestore.get(/databases/(default)/documents/renovo_plus_users/$(request.auth.uid)).data;
     }
 
     function isActiveProfile() {
-      return currentProfileExists() && currentProfile().status == "active";
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/renovo_plus_users/$(request.auth.uid))
+        && profile().status == "active";
     }
 
     function isAdminOrPastor() {
-      return isActiveProfile()
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/renovo_plus_users/$(request.auth.uid))
+        && profile().status == "active"
         && (
-          currentProfile().role == "admin"
-          || currentProfile().role == "pastor"
-          || currentProfile().role == "coordinator"
+          profile().role == "admin"
+          || profile().role == "pastor"
+          || profile().role == "coordinator"
         );
     }
 

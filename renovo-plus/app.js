@@ -304,7 +304,23 @@
     $("go-to-arena-kids")?.addEventListener("click", enterArenaKidsScreen);
     $("go-to-recepcao")?.addEventListener("click", enterRecepcaoScreen);
     $("go-to-admin")?.addEventListener("click", enterAdminScreen);
-    $("home-banner-wrap")?.addEventListener("click", (event) => {
+    $("home-banner-wrap")?.addEventListener("click", async (event) => {
+      if (event.target.closest("[data-banner-share]")) {
+        event.stopPropagation();
+        const btn = event.target.closest("[data-banner-share]");
+        const url = btn.dataset.bannerShareUrl || "";
+        const title = btn.dataset.bannerShareTitle || "Igreja Renovo";
+        try {
+          if (navigator.share) {
+            await navigator.share({ title, url: url || location.href });
+          } else if (url && navigator.clipboard) {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = "✅";
+            setTimeout(() => { btn.textContent = "⬆️"; }, 2000);
+          }
+        } catch (_) {}
+        return;
+      }
       const link = event.target.closest("[data-banner-link]")?.dataset.bannerLink;
       if (link) window.open(link, "_blank", "noopener");
     });
@@ -354,10 +370,13 @@
       return;
     }
     const image = `<img src="${escHtml(banner.imageUrl)}" alt="" loading="lazy" />`;
-    const text = banner.text ? `<p>${escHtml(banner.text)}</p>` : "";
+    const shareBtn = `<button type="button" class="banner-share-btn" data-banner-share data-banner-share-url="${escHtml(banner.link || "")}" data-banner-share-title="${escHtml(banner.text || "Igreja Renovo")}">⬆️</button>`;
+    const textRow = banner.text
+      ? `<div class="banner-text-row"><p>${escHtml(banner.text)}</p>${shareBtn}</div>`
+      : `<div class="banner-text-row banner-text-row--empty">${shareBtn}</div>`;
     wrap.innerHTML = banner.link
-      ? `<button type="button" class="home-banner-card" data-banner-link="${escHtml(banner.link)}">${image}${text}</button>`
-      : `<div class="home-banner-card">${image}${text}</div>`;
+      ? `<button type="button" class="home-banner-card" data-banner-link="${escHtml(banner.link)}">${image}${textRow}</button>`
+      : `<div class="home-banner-card">${image}${textRow}</div>`;
     wrap.hidden = false;
   }
 
