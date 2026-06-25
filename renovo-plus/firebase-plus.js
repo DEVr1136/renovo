@@ -1328,7 +1328,7 @@
 
       const canonicalEmail = String(user.email || normalizedEmail).toLowerCase().trim();
       const now = new Date().toISOString();
-      await db.collection(COLLECTIONS.users).doc(user.uid).set({
+      const profilePayload = {
         name: normalizedName,
         email: canonicalEmail,
         role: "pending",
@@ -1340,25 +1340,15 @@
         notes: "Conta criada pela administracao da Renovo+.",
         createdAt: now,
         updatedAt: now,
-      }, { merge: true });
+      };
+      await db.collection(COLLECTIONS.users).doc(user.uid).set(profilePayload, { merge: true });
 
       return {
         uid: user.uid,
         createdAt: now,
         canonicalEmail,
+        profile: normalizeProfile(user.uid, profilePayload),
       };
-    });
-
-    const profile = await saveUserProfile(created.uid, {
-      name: normalizedName,
-      email: String(created.canonicalEmail || normalizedEmail).toLowerCase().trim(),
-      role: String(patch?.role || "pending").trim(),
-      status: String(patch?.status || "pending").trim(),
-      igrejaId: normalizeIgrejaId(patch?.igrejaId),
-      primaryCellId: String(patch?.primaryCellId || "").trim(),
-      scopeCellIds: Array.isArray(patch?.scopeCellIds) ? patch.scopeCellIds : [],
-      ministryName: String(patch?.ministryName || "").trim(),
-      notes: String(patch?.notes || "Conta criada pela administracao da Renovo+.").trim(),
     });
 
     if (options.sendPasswordReset === true) {
@@ -1367,7 +1357,7 @@
 
     return {
       uid: created.uid,
-      profile,
+      profile: created.profile,
     };
   }
 
